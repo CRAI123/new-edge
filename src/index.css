@@ -1,0 +1,71 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+
+  --color-primary-blue: #0071e3;
+  --color-primary-green: #28cd41;
+  --color-bg-light: #f5f5f7;
+  --color-bg-white: #ffffff;
+  
+  --glass-bg: rgba(255, 255, 255, 0.72);
+  --glass-border: rgba(255, 255, 255, 0.3);
+
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  margin: 0;
+  background-color: var(--color-bg-white);
+  color: #1d1d1f;
+  overflow-x: hidden;
+}
+
+@layer components {
+  .glass-nav {
+    @apply backdrop-blur-md bg-white/70 border-b border-white/20 sticky top-0 z-50;
+  }
+  
+  .btn-primary {
+    @apply px-6 py-2 rounded-full bg-[#0071e3] text-white font-medium transition-all duration-300 hover:bg-[#0077ed] active:scale-95;
+  }
+
+  .btn-secondary {
+    @apply px-6 py-2 rounded-full border border-[#0071e3] text-[#0071e3] font-medium transition-all duration-300 hover:bg-[#f5f5f7] active:scale-95;
+  }
+
+  .section-padding {
+    @apply py-20 px-6 md:px-12 lg:px-24;
+  }
+
+  .heading-large {
+    @apply text-5xl md:text-7xl font-bold tracking-tight leading-tight;
+  }
+
+  .heading-medium {
+    @apply text-3xl md:text-5xl font-semibold tracking-tight;
+  }
+
+  .text-description {
+    @apply text-lg md:text-xl text-[#86868b] leading-relaxed;
+  }
+}
+
+.apple-gradient-blue {
+  background: linear-gradient(135deg, #0071e3 0%, #00c6ff 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.apple-gradient-green {
+  background: linear-gradient(135deg, #28cd41 0%, #34d058 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
