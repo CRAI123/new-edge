@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   Plus, 
@@ -11,13 +11,19 @@ import {
   List,
   AlertCircle,
   Upload,
-  Image as ImageIcon,
   Loader2,
   Wand2,
-  Zap
+  Zap,
+  Eye,
+  Check,
+  Printer as PrinterIcon,
+  Square,
+  CheckSquare2,
+  AlertTriangle
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { useUserStore } from "@/store/useUserStore";
+import { safeConfirm, showToast } from "@/lib/utils";
 
 interface Printer {
   id: string;
@@ -32,13 +38,17 @@ interface Printer {
   buy_url: string;
   status?: 'draft' | 'published';
   source_url?: string;
+  created_at?: string;
+  updated_at?: string;
 }
 
 export default function PrinterManager() {
   const [printers, setPrinters] = useState<Printer[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [isDiscovering, setIsDiscovering] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [filterStatus, setFilterStatus] = useState<string>("all");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingPrinter, setEditingPrinter] = useState<Partial<Printer> | null>(null);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
@@ -46,152 +56,193 @@ export default function PrinterManager() {
   const [parseText, setParseText] = useState("");
   const [isParsing, setIsParsing] = useState(false);
   const [discoveryCount, setDiscoveryCount] = useState(12);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [duplicateWarning, setDuplicateWarning] = useState<{ matches: Printer[] } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // 精准查重工具：品牌 + 型号组合（模糊/完全）多维匹配
+  const normalizeText = (s: string): string => {
+    return (s || "")
+      .toLowerCase()
+      .replace(/[\s\-_\/\\()（）【】\[\]·.,，。!！?？:：;；'"`~@#$%^&*+=<>|]/g, "")
+      .replace(/系列|旗舰|专业|极速|高速|打印|3d|printer|color/gi, "");
+  };
+
+  const findDuplicates = (candidate: Partial<Printer>, excludeId?: string): Printer[] => {
+    if (!candidate.title && !candidate.brand) return [];
+    const nTitle = normalizeText(candidate.title || "");
+    const nBrand = normalizeText(candidate.brand || "");
+    const brandSynonyms: Record<string, string[]> = {
+      "bambulab": ["拓竹", "bambu", "bambulab", "竹"],
+      "拓竹": ["拓竹", "bambu", "bambulab", "竹"],
+      "creality": ["创想三维", "creality", "创想"],
+      "创想三维": ["创想三维", "creality", "创想"],
+      "anycubic": ["纵维立方", "anycubic", "纵维"],
+      "纵维立方": ["纵维立方", "anycubic", "纵维"],
+      "flashforge": ["闪铸", "flashforge", "闪"],
+      "闪铸": ["闪铸", "flashforge", "闪"],
+      "prusa": ["普鲁士", "prusa", "普鲁"],
+      "普鲁士": ["普鲁士", "prusa", "普鲁"],
+      "elegoo": ["智能派", "elegoo"],
+      "智能派": ["智能派", "elegoo"],
+      "qidi": ["起迪", "qidi", "启迪"],
+      "起迪": ["起迪", "qidi", "启迪"],
+      "snapmaker": [" snapmaker", "快造"],
+      "markforged": ["markforged", "马克锻造"],
+    };
+    const brandKeys = Object.keys(brandSynonyms);
+    let matchedBrandKeys: string[] = [];
+    for (const k of brandKeys) {
+      if (brandSynonyms[k].some(s => nBrand.includes(normalizeText(s)))) {
+        matchedBrandKeys.push(k);
+        break;
+      }
+    }
+    const brandPool = matchedBrandKeys.length > 0
+      ? Array.from(new Set(matchedBrandKeys.flatMap(k => brandSynonyms[k].map(normalizeText))))
+      : [nBrand];
+
+    return printers.filter(p => {
+      if (excludeId && p.id === excludeId) return false;
+      const pTitle = normalizeText(p.title);
+      const pBrand = normalizeText(p.brand);
+      const brandMatch = brandPool.length === 0 || brandPool[0] === ""
+        ? true
+        : brandPool.some(s => pBrand.includes(s) || s.includes(pBrand));
+      const titleExact = nTitle && (pTitle === nTitle);
+      const titleContain = nTitle && (
+        (nTitle.length > 5 && pTitle.includes(nTitle)) ||
+        (pTitle.length > 5 && nTitle.includes(pTitle))
+      );
+      const titleFuzzy = nTitle && pTitle && (
+        Math.min(nTitle.length, pTitle.length) >= 5 &&
+        (
+          [...nTitle].filter(c => pTitle.includes(c)).length / Math.max(nTitle.length, pTitle.length) > 0.85
+        )
+      );
+      return brandMatch && (titleExact || titleContain || titleFuzzy);
+    });
+  };
 
   useEffect(() => {
     fetchPrinters();
   }, []);
 
   const handleSmartParse = async () => {
-      if (!parseText.trim()) return;
-      setIsParsing(true);
-      
-      try {
-        // 检查是否配置了 DeepSeek API Key
-        const apiKey = import.meta.env.VITE_DEEPSEEK_API_KEY;
-        
-        if (apiKey && apiKey !== 'your_api_key_here') {
-          // 调用真实的 DeepSeek API 进行智能解析
-          const response = await fetch('https://api.deepseek.com/v1/chat/completions', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${apiKey}`
-            },
-            body: JSON.stringify({
-              model: "deepseek-chat",
-              messages: [
-                {
-                  role: "system", 
-                  content: "你是一个 3D 打印专家。请从用户提供的文本中提取打印机信息，并以 JSON 格式返回：{brand, title, price, pros:[], cons:[], description, buy_url}。注意：pros 提取 3-5 个，cons 提取 2-3 个。清除所有'核心优势'、'不足之处'等标题文字。"
-                },
-                { role: "user", content: parseText }
-              ],
-              response_format: { type: 'json_object' }
-            })
-          });
+    if (!parseText.trim()) return;
+    setIsParsing(true);
 
-          const data = await response.json();
-          const result = JSON.parse(data.choices[0].message.content);
+    try {
+      const apiKey = import.meta.env.VITE_DEEPSEEK_API_KEY;
 
-          setEditingPrinter({
-            ...editingPrinter,
-            brand: result.brand || "未知品牌",
-            title: result.title || "新机型",
-            price: result.price || "待定",
-            buy_url: result.buy_url || "",
-            pros: result.pros || [],
-            cons: result.cons || [],
-            description: result.description || "",
-            rating: 4.8
-          });
-        } else {
-          // 如果没有 API Key，回退到之前的本地正则解析逻辑
-          console.warn("未检测到 VITE_DEEPSEEK_API_KEY，使用本地模拟解析模式。");
-          // ... 原有的 setTimeout 和正则逻辑 ...
-          setTimeout(() => {
-            const text = parseText;
-            // (保持原有的正则解析代码不变，作为兜底)
-            const brands = ["拓竹", "Bambu Lab", "创想三维", "Creality", "纵维立方", "Anycubic", "闪铸", "Flashforge", "普鲁士", "Prusa", "智能派", "Elegoo"];
-            let foundBrand = "未知品牌";
-            for (const b of brands) {
-              if (text.toLowerCase().includes(b.toLowerCase())) {
-                foundBrand = b;
-                break;
-              }
-            }
-            const lines = text.split(/[\n,，。;；]/).filter(l => l.trim());
-            const foundTitle = lines[0] || "新机型";
-            const priceRegex = /(?:¥|￥|RMB|\$)\s*(\d+(?:[.,，]\d+)?)|(\d+(?:[.,，]\d+)?)\s*(?:元|块)/i;
-            const priceMatch = text.match(priceRegex);
-            const foundPrice = priceMatch ? priceMatch[0] : "待定";
-            const urlRegex = /(https?:\/\/[^\s]+)/g;
-            const urlMatch = text.match(urlRegex);
-            const foundBuyUrl = urlMatch ? urlMatch[0] : "";
-            const pros: string[] = [];
-            const cons: string[] = [];
-            const usedLines = new Set([lines[0]]);
-            const clean = (l: string) => l.replace(/[✅❌➕➖⭐✨🌟🚀💎🔥]/g, "").replace(/核心优势|优势|优点|不足之处|不足|缺点|亮点|遗憾/g, "").replace(/[:：]/g, "").replace(/^[+\-\d.)\s]*/, "").trim();
-            lines.forEach((line, index) => {
-              if (index === 0) return;
-              const lowerLine = line.toLowerCase();
-              if (line.includes("✅") || line.includes("+")) {
-                const cleaned = clean(line);
-                if (cleaned) { pros.push(cleaned); usedLines.add(line); }
-              }
-              if (line.includes("❌") || line.includes("-")) {
-                const cleaned = clean(line);
-                if (cleaned) { cons.push(cleaned); usedLines.add(line); }
-              }
-            });
-            const remainingLines = lines.filter(l => !usedLines.has(l) && l.length > 5);
-            setEditingPrinter({
-              ...editingPrinter,
-              brand: foundBrand,
-              title: foundTitle,
-              price: foundPrice,
-              buy_url: foundBuyUrl,
-              pros: [...new Set(pros)].slice(0, 5),
-              cons: [...new Set(cons)].slice(0, 3),
-              description: remainingLines.slice(0, 3).join("。"),
-              rating: 4.8
-            });
-            setIsParsing(false);
-            setParseText("");
-          }, 800);
-          return;
-        }
-      } catch (error) {
-        console.error("AI 解析失败:", error);
-        alert("AI 解析遇到问题，已切换至本地模式。");
-      } finally {
-        if (import.meta.env.VITE_DEEPSEEK_API_KEY) {
-          setIsParsing(false);
-          setParseText("");
-        }
+      if (!apiKey || apiKey === 'your_api_key_here') {
+        throw new Error("未配置 DeepSeek API Key（VITE_DEEPSEEK_API_KEY），请在项目根目录 .env 文件中设置后重试。");
       }
-    };
+
+      const response = await fetch('https://api.deepseek.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiKey}`
+        },
+        body: JSON.stringify({
+          model: "deepseek-chat",
+          messages: [
+            {
+              role: "system",
+              content: "你是一个 3D 打印专家。请从用户提供的文本中提取打印机信息，并以 JSON 格式返回：{brand, title, price, pros:[], cons:[], description, buy_url}。注意：pros 提取 3-5 个，cons 提取 2-3 个。清除所有'核心优势'、'不足之处'等标题文字。"
+            },
+            { role: "user", content: parseText }
+          ],
+          response_format: { type: 'json_object' }
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error(`DeepSeek API 请求失败 (HTTP ${response.status})`);
+      }
+
+      const data = await response.json();
+      if (!data?.choices?.[0]?.message?.content) {
+        throw new Error("DeepSeek 返回为空");
+      }
+
+      let content = data.choices[0].message.content;
+      content = content.replace(/```json\n?|```/g, '').trim();
+      const result = JSON.parse(content);
+
+      setEditingPrinter({
+        ...editingPrinter,
+        brand: result.brand || "未知品牌",
+        title: result.title || "新机型",
+        price: result.price || "待定",
+        buy_url: result.buy_url || "",
+        pros: Array.isArray(result.pros) ? result.pros : [],
+        cons: Array.isArray(result.cons) ? result.cons : [],
+        description: result.description || "",
+        rating: typeof result.rating === 'number' ? result.rating : 4.8
+      });
+      showToast("success", "AI 智能解析成功，请在下方核对和补充。");
+    } catch (err: any) {
+      console.error("AI 解析失败:", err);
+      showToast("error", `AI 解析失败: ${err.message || '未知错误'}`);
+    } finally {
+      setIsParsing(false);
+      setParseText("");
+    }
+  };
 
   const fetchPrinters = async () => {
-    setLoading(true);
-    const { data, error } = await supabase
-      .from('printers')
-      .select('*')
-      .order('created_at', { ascending: false });
-    
-    if (data) setPrinters(data);
-    setLoading(false);
+    try {
+      setLoading(true);
+      setError(null);
+
+      const { data, error } = await supabase
+        .from('printers')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        throw new Error(error.message || "无法获取打印机数据，请检查 RLS 权限或网络连接");
+      }
+
+      console.log("真实打印机数据:", data);
+      setPrinters((data || []) as Printer[]);
+      if ((data?.length ?? 0) > 0) {
+        showToast("success", `成功同步 ${data!.length} 款真实机型数据`);
+      }
+    } catch (err: any) {
+      console.error('获取打印机失败:', err.message);
+      setError(err.message || "加载失败");
+      setPrinters([]);
+      showToast("error", err.message || "打印机数据加载失败");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleAutoDiscover = async () => {
     setIsDiscovering(true);
     try {
       const apiKey = import.meta.env.VITE_DEEPSEEK_API_KEY;
-      
-      if (apiKey && apiKey !== 'your_api_key_here') {
-        // 调用 DeepSeek API 进行全网新款搜索模拟（基于 AI 的知识推理或联网插件模拟）
-        const response = await fetch('https://api.deepseek.com/v1/chat/completions', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${apiKey}`
-          },
-          body: JSON.stringify({
-            model: "deepseek-chat",
-            messages: [
-              {
-                role: "system", 
-                content: `你是一个专业的 3D 打印硬件数据采集专家。请提供 ${discoveryCount} 款目前市面上真实在售、极具特色（多头换色、极速、工业级）的 3D 打印机详细数据。
+
+      if (!apiKey || apiKey === 'your_api_key_here') {
+        throw new Error("未配置 DeepSeek API Key（VITE_DEEPSEEK_API_KEY），请在项目根目录 .env 文件中设置后重试。");
+      }
+
+      const response = await fetch('https://api.deepseek.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiKey}`
+        },
+        body: JSON.stringify({
+          model: "deepseek-chat",
+          messages: [
+            {
+              role: "system",
+              content: `你是一个专业的 3D 打印硬件数据采集专家。请提供 ${discoveryCount} 款目前市面上真实在售、极具特色（多头换色、极速、工业级）的 3D 打印机详细数据。
 
 严格要求：
 1. 型号真实：必须是真实型号（如：Bambu Lab X1C, Creality K2 Plus, Anycubic Kobra 3 等）。
@@ -200,119 +251,97 @@ export default function PrinterManager() {
    - 由于官方 CDN 常有防盗链保护，请务必在 'image_prompt' 字段中提供一段精确的英文描述，用于生成该机器的逼真预览图。描述应包含：机器型号、颜色、结构特征（如 CoreXY 架构、透明外壳、多色供料系统等）。
 3. 数据要求：价格换算为人民币（如：¥6,999），评分参考真实好评率（0-5分）。
 4. 格式：以 JSON 数组格式返回：[{brand, title, price, rating, pros:[], cons:[], description, buy_url, image, image_prompt}]。`
-              },
-              { role: "user", content: `请扫描并发现 ${discoveryCount} 款真实的特色 3D 打印机，并为每一款提供精准的图片生成描述。` }
-            ],
-            response_format: { type: 'json_object' }
-          })
-        });
+            },
+            { role: "user", content: `请扫描并发现 ${discoveryCount} 款真实的特色 3D 打印机，并为每一款提供精准的图片生成描述。` }
+          ],
+          response_format: { type: 'json_object' }
+        })
+      });
 
-        const data = await response.json();
-        console.log("DeepSeek API Response:", data);
-        
-        let content = data.choices[0].message.content;
-        // 清理可能存在的 Markdown 代码块标记
-        content = content.replace(/```json\n?|```/g, '').trim();
-        
-        let result;
-        try {
-          result = JSON.parse(content);
-        } catch (e) {
-          console.error("JSON Parsing Error:", e, "Content:", content);
-          throw new Error("AI 返回的数据格式不正确，无法解析");
-        }
-        
-        // 兼容不同格式的返回值
-        let newModels = [];
-        if (Array.isArray(result)) {
-          newModels = result;
-        } else if (result.printers && Array.isArray(result.printers)) {
-          newModels = result.printers;
-        } else if (result.models && Array.isArray(result.models)) {
-          newModels = result.models;
-        } else {
-          // 尝试寻找对象中的第一个数组
-          const firstArray = Object.values(result).find(val => Array.isArray(val));
-          if (firstArray) newModels = firstArray;
-        }
+      if (!response.ok) {
+        throw new Error(`DeepSeek API 请求失败 (HTTP ${response.status})`);
+      }
 
-        console.log("Parsed Models:", newModels);
+      const data = await response.json();
+      console.log("DeepSeek API Response:", data);
 
-        if (Array.isArray(newModels) && newModels.length > 0) {
-          let addedCount = 0;
-          for (const model of newModels) {
-            // 确保必要字段存在
-            if (!model.title || !model.brand) continue;
-            
-            // 查重逻辑更精确一些：完全匹配或包含匹配
-            const isExist = printers.some(p => 
-              p.title.toLowerCase() === model.title.toLowerCase() || 
-              (p.title.toLowerCase().includes(model.title.toLowerCase()) && model.title.length > 5)
-            );
+      if (!data?.choices?.[0]?.message?.content) {
+        throw new Error("DeepSeek 返回为空");
+      }
 
-            if (!isExist) {
-              const { error: insertError } = await supabase.from('printers').insert([{
-                title: model.title,
-                brand: model.brand,
-                price: model.price || "待定",
-                image: model.image || "https://core-normal.traeapi.us/api/ide/v1/text_to_image?prompt=3D+printer+modern+design+industrial&image_size=landscape_4_3",
-                description: model.description || "",
-                pros: Array.isArray(model.pros) ? model.pros : [],
-                cons: Array.isArray(model.cons) ? model.cons : [],
-                buy_url: model.buy_url || "",
-                status: 'draft',
-                rating: model.rating || 4.8,
-                source_url: 'AI Auto Discovery'
-              }]);
-              
-              if (insertError) {
-                console.error("Insert Error:", insertError);
-                alert(`保存机型 "${model.title}" 失败: ${insertError.message}`);
-              } else {
-                addedCount++;
-              }
-            }
-          }
-          
-          if (addedCount === 0) {
-            alert("扫描完成，但发现的所有机型已存在于列表中。");
-          } else {
-            await fetchPrinters();
-            alert(`真 AI 扫描完成！成功导入 ${addedCount} 款新款（标记为草稿）。请查看带'自动发现'标签的项。`);
-          }
-        } else {
-          throw new Error("未能从 AI 响应中提取到有效机型数据");
-        }
+      let content = data.choices[0].message.content;
+      content = content.replace(/```json\n?|```/g, '').trim();
+
+      let result;
+      try {
+        result = JSON.parse(content);
+      } catch (e) {
+        console.error("JSON Parsing Error:", e, "Content:", content);
+        throw new Error("AI 返回的数据格式不正确，无法解析");
+      }
+
+      let newModels: any[] = [];
+      if (Array.isArray(result)) {
+        newModels = result;
+      } else if (result.printers && Array.isArray(result.printers)) {
+        newModels = result.printers;
+      } else if (result.models && Array.isArray(result.models)) {
+        newModels = result.models;
       } else {
-        // 回退逻辑
-        setTimeout(async () => {
-          // ... 原有的模拟逻辑 ...
-          const newModels = [
-            {
-              title: "2026 颠覆之作：Bambu Lab H2D",
-              brand: "拓竹科技 (Bambu Lab)",
-              price: "¥8,999",
-              image: "https://images.squarespace-cdn.com/content/v1/5c98e217a9ab4564c7031835/1715846985175-QY4K0OQO6OQO6OQO6OQO/Bambu+Lab+H2D.jpg",
-              description: "2026年最新发布的四合一工具机，集成了 3D 打印与 40W 激光雕刻模组。",
-              pros: ["四合一功能", "40W 强力激光"],
-              cons: ["体积巨大"],
-              buy_url: "https://bambulab.cn/",
-              status: "draft",
-              source_url: "AI Local Discovery"
-            }
-          ];
-          for (const model of newModels) {
-            const isExist = printers.some(p => p.title.includes(model.title));
-            if (!isExist) await supabase.from('printers').insert([model]);
-          }
-          fetchPrinters();
-          setIsDiscovering(false);
-          alert("本地模拟扫描完成！");
-        }, 2000);
+        const firstArray = Object.values(result).find(val => Array.isArray(val));
+        if (firstArray) newModels = firstArray as any[];
+      }
+
+      console.log("Parsed Models:", newModels);
+
+      if (!Array.isArray(newModels) || newModels.length === 0) {
+        throw new Error("未能从 AI 响应中提取到有效机型数据");
+      }
+
+      let addedCount = 0;
+      let skippedCount = 0;
+      for (const model of newModels) {
+        if (!model.title || !model.brand) continue;
+
+        const dupes = findDuplicates({ title: model.title, brand: model.brand });
+        if (dupes.length > 0) {
+          skippedCount++;
+          continue;
+        }
+
+        const { error: insertError } = await supabase.from('printers').insert([{
+          title: model.title,
+          brand: model.brand,
+          price: model.price || "待定",
+          image: model.image || "",
+          description: model.description || "",
+          pros: Array.isArray(model.pros) ? model.pros : [],
+          cons: Array.isArray(model.cons) ? model.cons : [],
+          buy_url: model.buy_url || "",
+          status: 'draft',
+          rating: model.rating || 4.8,
+          source_url: 'AI Auto Discovery'
+        }]);
+
+        if (insertError) {
+          console.error("Insert Error:", insertError);
+          showToast("error", `保存机型 "${model.title}" 失败: ${insertError.message}`);
+        } else {
+          addedCount++;
+        }
+      }
+
+      if (addedCount === 0) {
+        showToast("info", `扫描完成，全部 ${skippedCount} 款机型已在库中，已自动跳过重复。`);
+      } else {
+        await fetchPrinters();
+        let msg = `真 AI 扫描完成！成功导入 ${addedCount} 款新款（草稿）。`;
+        if (skippedCount > 0) msg += ` 自动避开重复 ${skippedCount} 款。`;
+        showToast("success", msg);
       }
     } catch (error: any) {
       console.error("AI 发现失败:", error);
-      alert(`AI 自动发现遇到问题: ${error.message || '未知错误'}`);
+      showToast("error", `AI 自动发现失败: ${error.message || '未知错误'}`);
     } finally {
       setIsDiscovering(false);
     }
@@ -324,7 +353,7 @@ export default function PrinterManager() {
 
     const { isAdmin } = useUserStore.getState();
     if (!isAdmin) {
-      alert("权限不足：仅管理员可上传图片。");
+      showToast("error", "权限不足：仅管理员可上传图片。");
       return;
     }
 
@@ -335,7 +364,7 @@ export default function PrinterManager() {
       const filePath = `printers/${fileName}`;
 
       const { error: uploadError } = await supabase.storage
-        .from('course-materials') // Reuse existing bucket or suggest creating printer-images
+        .from('course-materials')
         .upload(filePath, file);
 
       if (uploadError) throw uploadError;
@@ -345,73 +374,190 @@ export default function PrinterManager() {
         .getPublicUrl(filePath);
 
       setEditingPrinter(prev => ({ ...prev, image: publicUrl }));
+      showToast("success", "图片上传成功");
     } catch (error: any) {
-      alert("图片上传失败: " + error.message);
+      showToast("error", "图片上传失败: " + error.message);
     } finally {
       setUploading(false);
     }
   };
 
-  const handleSave = async () => {
-    if (!editingPrinter?.title || !editingPrinter?.brand) return;
+  const handleSave = async (force = false) => {
+    if (!editingPrinter?.title || !editingPrinter?.brand) {
+      showToast("error", "设备名称和品牌为必填项");
+      return;
+    }
+
+    if (!force && !editingPrinter.id) {
+      const matches = findDuplicates(editingPrinter);
+      if (matches.length > 0) {
+        setDuplicateWarning({ matches });
+        return;
+      }
+    }
 
     const printerData = {
       ...editingPrinter,
       updated_at: new Date().toISOString()
     };
 
-    if (editingPrinter.id) {
-      const { error } = await supabase
-        .from('printers')
-        .update(printerData)
-        .eq('id', editingPrinter.id);
-      if (!error) setIsModalOpen(false);
-    } else {
-      const { error } = await supabase
-        .from('printers')
-        .insert([printerData]);
-      if (!error) setIsModalOpen(false);
+    try {
+      if (editingPrinter.id) {
+        const { error } = await supabase
+          .from('printers')
+          .update(printerData)
+          .eq('id', editingPrinter.id);
+        if (error) throw error;
+        showToast("success", `「${editingPrinter.title}」已更新`);
+      } else {
+        const { error } = await supabase
+          .from('printers')
+          .insert([printerData]);
+        if (error) throw error;
+        showToast("success", `「${editingPrinter.title}」新增成功`);
+      }
+      setIsModalOpen(false);
+      setDuplicateWarning(null);
+      fetchPrinters();
+    } catch (err: any) {
+      showToast("error", `保存失败: ${err.message || '未知错误'}`);
     }
-    fetchPrinters();
   };
 
   const handleDelete = async (id: string) => {
-    if (confirm("确定要删除这款设备吗？此操作不可撤销。")) {
-      const { error } = await supabase
-        .from('printers')
-        .delete()
-        .eq('id', id);
-      if (!error) fetchPrinters();
+    const printer = printers.find(p => p.id === id);
+    if (safeConfirm("确定要删除这款设备吗？此操作不可撤销。")) {
+      try {
+        const { error } = await supabase
+          .from('printers')
+          .delete()
+          .eq('id', id);
+        if (error) throw error;
+        setSelectedIds(prev => {
+          const next = new Set(prev);
+          next.delete(id);
+          return next;
+        });
+        showToast("success", `「${printer?.title || '设备'}」已删除`);
+        fetchPrinters();
+      } catch (err: any) {
+        showToast("error", `删除失败: ${err.message || '未知错误'}`);
+      }
     }
   };
 
-  const filteredPrinters = printers.filter(p => 
-    p.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    p.brand.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const toggleSelect = (id: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedIds.size === filteredPrinters.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(filteredPrinters.map(p => p.id)));
+    }
+  };
+
+  const clearSelection = () => setSelectedIds(new Set());
+
+  const handleBulkDelete = async () => {
+    const count = selectedIds.size;
+    if (count === 0) return;
+    if (!safeConfirm(`确定要批量删除选中的 ${count} 款设备吗？此操作不可撤销。`)) return;
+    setIsDeleting(true);
+    let successCount = 0;
+    for (const id of Array.from(selectedIds)) {
+      try {
+        const { error } = await supabase.from('printers').delete().eq('id', id);
+        if (!error) successCount++;
+      } catch (e) { /* noop */ }
+    }
+    setIsDeleting(false);
+    setSelectedIds(new Set());
+    if (successCount > 0) {
+      showToast("success", `已批量删除 ${successCount} 款设备`);
+      fetchPrinters();
+    } else {
+      showToast("error", "批量删除失败，请稍后重试");
+    }
+  };
+
+  const handleBulkStatus = async (newStatus: 'draft' | 'published') => {
+    const count = selectedIds.size;
+    if (count === 0) return;
+    const ids = Array.from(selectedIds);
+    setIsDeleting(true);
+    try {
+      const { error } = await supabase
+        .from('printers')
+        .update({ status: newStatus, updated_at: new Date().toISOString() })
+        .in('id', ids);
+      if (error) throw error;
+      showToast("success", `已将 ${count} 款设备更新为「${statusMap[newStatus].label}」`);
+      clearSelection();
+      fetchPrinters();
+    } catch (err: any) {
+      showToast("error", `批量状态更新失败: ${err.message || '未知错误'}`);
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  const filteredPrinters = useMemo(() => {
+    return printers.filter(p => {
+      const matchesSearch = searchQuery.trim() === ""
+        ? true
+        : p.title.toLowerCase().includes(searchQuery.toLowerCase())
+          || p.brand.toLowerCase().includes(searchQuery.toLowerCase());
+      const matchesStatus = filterStatus === "all" ? true : (p.status || "published") === filterStatus;
+      return matchesSearch && matchesStatus;
+    });
+  }, [printers, searchQuery, filterStatus]);
+
+  const statusMap: Record<string, { label: string; cls: string }> = {
+    "published": { label: "已发布", cls: "bg-emerald-50 text-emerald-600 border border-emerald-100" },
+    "draft": { label: "草稿(自动发现)", cls: "bg-[#0071e3]/10 text-[#0071e3] border border-[#0071e3]/20" },
+  };
 
   return (
-    <div className="min-h-screen bg-[#f5f5f7] pt-28 pb-12 px-6 md:px-12">
+    <div className="min-h-screen bg-[#f5f5f7] pt-28 pb-12 px-6 md:px-12 relative">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between mb-10 gap-6">
+        <div className="flex flex-col md:flex-row md:items-center justify-between mb-10 gap-4">
           <div>
             <h1 className="text-3xl font-bold text-[#1d1d1f]">设备方案管理</h1>
-            <p className="text-[#86868b] mt-1">管理前台展示的 3D 打印机推荐与评测数据</p>
+            <p className="text-[#86868b] mt-1">
+              共 {printers.length} 款机型 ·
+              草稿 {printers.filter(p => (p.status || 'published') === 'draft').length} 款 ·
+              已发布 {printers.filter(p => (p.status || 'published') === 'published').length} 款
+            </p>
           </div>
-          <div className="flex gap-4 items-center">
+          <div className="flex gap-3 items-center flex-wrap">
             <div className="flex items-center bg-white rounded-2xl px-4 py-2 shadow-sm border border-[#f5f5f7]">
               <span className="text-xs font-bold text-[#86868b] mr-2">扫描数量:</span>
-              <input 
-                type="number" 
-                min="1" 
+              <input
+                type="number"
+                min="1"
                 max="50"
                 value={discoveryCount}
                 onChange={(e) => setDiscoveryCount(parseInt(e.target.value) || 1)}
                 className="w-12 text-center font-bold text-[#0071e3] outline-none"
               />
             </div>
-            <button 
+            <button
+              onClick={fetchPrinters}
+              disabled={loading}
+              className="px-5 py-3 rounded-2xl bg-white border border-[#0071e3]/20 text-[#0071e3] font-semibold hover:bg-[#0071e3]/5 transition-all shadow-sm flex items-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
+            >
+              <Eye className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
+              {loading ? "同步中..." : "刷新真实数据"}
+            </button>
+            <button
               onClick={handleAutoDiscover}
               disabled={isDiscovering}
               className="flex items-center gap-2 px-6 py-3 rounded-2xl bg-white border border-[#0071e3] text-[#0071e3] font-bold hover:bg-[#0071e3]/5 transition-all disabled:opacity-50"
@@ -423,9 +569,9 @@ export default function PrinterManager() {
               )}
               智能扫描新款
             </button>
-            <button 
+            <button
               onClick={() => {
-                setEditingPrinter({ rating: 4.5, pros: [], cons: [] });
+                setEditingPrinter({ rating: 4.5, pros: [], cons: [], status: 'published' });
                 setIsModalOpen(true);
               }}
               className="btn-primary flex items-center gap-2 px-6"
@@ -436,48 +582,201 @@ export default function PrinterManager() {
           </div>
         </div>
 
-        {/* Toolbar */}
-        <div className="flex flex-col md:flex-row gap-4 mb-8">
-          <div className="relative flex-grow">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-[#86868b]" />
-            <input
-              type="text"
-              placeholder="搜索机型或品牌..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-12 pr-4 py-4 bg-white rounded-2xl border-none shadow-sm focus:ring-2 focus:ring-[#0071e3]/20 transition-all outline-none"
-            />
-          </div>
-          <div className="flex bg-white rounded-2xl p-1 shadow-sm shrink-0">
-            <button 
-              onClick={() => setViewMode('grid')}
-              className={`p-3 rounded-xl transition-all ${viewMode === 'grid' ? 'bg-[#f5f5f7] text-[#0071e3]' : 'text-[#86868b]'}`}
+        {/* Toolbar + 选中工具栏 */}
+        <AnimatePresence mode="wait">
+          {selectedIds.size > 0 ? (
+            <motion.div
+              key="selected-bar"
+              initial={{ opacity: 0, y: -10, height: 0 }}
+              animate={{ opacity: 1, y: 0, height: "auto" }}
+              exit={{ opacity: 0, y: -10, height: 0 }}
+              transition={{ type: "spring", stiffness: 420, damping: 32 }}
+              className="bg-gradient-to-r from-[#0071e3] to-[#28cd41] rounded-3xl shadow-xl shadow-[#0071e3]/20 px-6 py-4 mb-8 flex flex-col md:flex-row md:items-center justify-between gap-4 text-white overflow-hidden"
             >
-              <LayoutGrid className="w-5 h-5" />
-            </button>
-            <button 
-              onClick={() => setViewMode('list')}
-              className={`p-3 rounded-xl transition-all ${viewMode === 'list' ? 'bg-[#f5f5f7] text-[#0071e3]' : 'text-[#86868b]'}`}
+              <div className="flex items-center gap-4 flex-wrap">
+                <div className="w-11 h-11 rounded-2xl bg-white/20 flex items-center justify-center shrink-0">
+                  <CheckSquare2 className="w-5 h-5" />
+                </div>
+                <div>
+                  <div className="text-xs uppercase tracking-[0.18em] font-bold text-white/80">多选模式</div>
+                  <div className="text-lg font-bold leading-tight">
+                    已选中 <span className="text-white">{selectedIds.size}</span> / {filteredPrinters.length} 款
+                  </div>
+                </div>
+                <button
+                  onClick={toggleSelectAll}
+                  disabled={isDeleting}
+                  className="px-4 py-2 rounded-xl bg-white/15 text-sm font-semibold hover:bg-white/25 transition-colors disabled:opacity-50"
+                >
+                  {selectedIds.size === filteredPrinters.length ? "取消全选" : "全选当前筛选"}
+                </button>
+                <button
+                  onClick={clearSelection}
+                  disabled={isDeleting}
+                  className="px-4 py-2 rounded-xl bg-white/10 text-sm font-semibold hover:bg-white/20 transition-colors disabled:opacity-50"
+                >
+                  清空选择
+                </button>
+              </div>
+              <div className="flex gap-2 flex-wrap">
+                <button
+                  onClick={() => handleBulkStatus('published')}
+                  disabled={isDeleting}
+                  className="px-5 py-2.5 rounded-xl bg-white/20 hover:bg-white/30 transition-colors flex items-center gap-2 font-semibold disabled:opacity-50"
+                >
+                  <Check className="w-4 h-4" />
+                  批量发布
+                </button>
+                <button
+                  onClick={() => handleBulkStatus('draft')}
+                  disabled={isDeleting}
+                  className="px-5 py-2.5 rounded-xl bg-white/15 hover:bg-white/25 transition-colors flex items-center gap-2 font-semibold disabled:opacity-50"
+                >
+                  <Eye className="w-4 h-4" />
+                  批量设为草稿
+                </button>
+                <button
+                  onClick={handleBulkDelete}
+                  disabled={isDeleting}
+                  className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-rose-500 to-red-600 hover:from-rose-600 hover:to-red-700 transition-colors flex items-center gap-2 font-bold shadow-lg shadow-rose-900/30 disabled:opacity-50"
+                >
+                  {isDeleting ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Trash2 className="w-4 h-4" />
+                  )}
+                  {isDeleting ? "处理中..." : `批量删除 (${selectedIds.size})`}
+                </button>
+              </div>
+            </motion.div>
+          ) : (
+            <motion.div
+              key="normal-toolbar"
+              initial={{ opacity: 0, y: -5 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -5 }}
+              className="bg-white rounded-3xl p-4 shadow-sm border border-white mb-8 flex flex-col md:flex-row gap-4"
             >
-              <List className="w-5 h-5" />
-            </button>
-          </div>
-        </div>
+              <div className="relative flex-grow">
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-[#86868b]" />
+                <input
+                  type="text"
+                  placeholder="搜索真实机型或品牌..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full pl-12 pr-4 py-3 rounded-2xl bg-[#f5f5f7] border-transparent focus:bg-white focus:border-[#0071e3] focus:ring-4 focus:ring-[#0071e3]/10 outline-none transition-all"
+                />
+              </div>
+              <div className="flex gap-2 flex-wrap items-center">
+                <div className="flex items-center gap-2 px-2 py-1 rounded-2xl bg-[#f5f5f7]">
+                  <button
+                    onClick={toggleSelectAll}
+                    disabled={filteredPrinters.length === 0}
+                    title="快速多选"
+                    className="p-2.5 rounded-xl hover:bg-white text-[#86868b] hover:text-[#0071e3] transition-all disabled:opacity-40"
+                  >
+                    <CheckSquare2 className="w-4.5 h-4.5" />
+                  </button>
+                  <span className="text-xs font-bold text-[#86868b] pr-2">多选</span>
+                </div>
+                <select
+                  value={filterStatus}
+                  onChange={(e) => setFilterStatus(e.target.value)}
+                  className="flex items-center gap-2 px-4 py-3 rounded-2xl bg-[#f5f5f7] text-[#1d1d1f] hover:bg-[#ececef] transition-colors outline-none font-medium text-sm"
+                >
+                  <option value="all">全部状态</option>
+                  <option value="published">已发布</option>
+                  <option value="draft">草稿 (AI自动发现)</option>
+                </select>
+                <div className="flex bg-[#f5f5f7] rounded-2xl p-1 shadow-sm shrink-0">
+                  <button
+                    onClick={() => setViewMode('grid')}
+                    className={`p-3 rounded-xl transition-all ${viewMode === 'grid' ? 'bg-white text-[#0071e3] shadow-sm' : 'text-[#86868b]'}`}
+                  >
+                    <LayoutGrid className="w-5 h-5" />
+                  </button>
+                  <button
+                    onClick={() => setViewMode('list')}
+                    className={`p-3 rounded-xl transition-all ${viewMode === 'list' ? 'bg-white text-[#0071e3] shadow-sm' : 'text-[#86868b]'}`}
+                  >
+                    <List className="w-5 h-5" />
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
-        {/* Content */}
+        {/* Loading / Error / Empty / Content */}
         {loading ? (
-          <div className="flex justify-center py-20">
-            <div className="w-8 h-8 border-4 border-[#0071e3] border-t-transparent rounded-full animate-spin"></div>
+          <div className="flex flex-col items-center justify-center py-32 bg-white rounded-[2.5rem] shadow-sm">
+            <Loader2 className="w-10 h-10 text-[#0071e3] animate-spin mb-4" />
+            <p className="text-[#86868b]">正在从数据库同步真实机型数据...</p>
+          </div>
+        ) : error ? (
+          <div className="flex flex-col items-center justify-center py-24 bg-rose-50/50 border border-rose-100 rounded-[2.5rem]">
+            <AlertCircle className="w-12 h-12 text-rose-500 mb-4" />
+            <h3 className="text-xl font-bold text-[#1d1d1f] mb-2">数据加载失败</h3>
+            <p className="text-rose-600 mb-6 max-w-md text-center px-4">{error}</p>
+            <p className="text-[#86868b] text-sm max-w-lg text-center px-4 mb-6">
+              请确认 Supabase `printers` 表存在且 RLS 策略已配置，或临时禁用 RLS 后重试。
+            </p>
+            <button
+              onClick={fetchPrinters}
+              className="px-6 py-3 rounded-2xl bg-[#0071e3] text-white font-bold hover:bg-[#0077ed] transition-all ripple-target"
+            >
+              重新加载
+            </button>
+          </div>
+        ) : filteredPrinters.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-32 bg-white rounded-[2.5rem] shadow-sm border border-white">
+            <PrinterIcon className="w-16 h-16 text-[#86868b]/20 mb-6" />
+            <h3 className="text-2xl font-bold text-[#1d1d1f] mb-2">
+              {printers.length === 0 ? "暂无设备数据" : "没有匹配的设备"}
+            </h3>
+            <p className="text-[#86868b] text-center max-w-md px-4">
+              {printers.length === 0
+                ? "请点击右上角「智能扫描新款」或「新增机型」来录入第一款真实设备。草稿数据需管理员审核后发布。"
+                : "请尝试调整搜索关键词或状态过滤条件。"}
+            </p>
           </div>
         ) : viewMode === 'grid' ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {filteredPrinters.map((printer) => (
+            {filteredPrinters.map((printer) => {
+              const selected = selectedIds.has(printer.id);
+              const cardCls = selected
+                ? "bg-white rounded-[2.5rem] overflow-hidden shadow-sm border border-[#0071e3] ring-4 ring-[#0071e3]/20 shadow-[0_20px_50px_-12px_rgba(0,113,227,0.35)] hover:shadow-xl transition-all group relative"
+                : "bg-white rounded-[2.5rem] overflow-hidden shadow-sm border border-white hover:shadow-xl transition-all group relative";
+              const cornerCheckCls = selected
+                ? "w-8 h-8 rounded-xl border-2 shadow-lg flex items-center justify-center transition-all bg-gradient-to-br from-[#0071e3] to-[#28cd41] border-transparent text-white scale-110"
+                : "w-8 h-8 rounded-xl border-2 shadow-lg flex items-center justify-center transition-all bg-white border-[#d2d2d7] text-transparent hover:border-[#0071e3] hover:text-[#0071e3]/40";
+              return (
               <motion.div
                 layout
                 key={printer.id}
-                className="bg-white rounded-[2.5rem] overflow-hidden shadow-sm border border-white hover:shadow-xl transition-all group"
+                className={cardCls}
               >
-                <div className="aspect-video relative overflow-hidden bg-gradient-to-br from-[#f8fafc] to-[#f1f5f9] flex items-center justify-center border-b border-[#f5f5f7]">
+                {/* 选中蒙层 + 复选框 */}
+                <button
+                  onClick={(e) => { e.stopPropagation(); toggleSelect(printer.id); }}
+                  className="absolute top-0 left-0 z-30 w-full h-full cursor-default pointer-events-none"
+                  tabIndex={-1}
+                  aria-hidden={true}
+                />
+                <div
+                  onClick={(e) => { e.stopPropagation(); toggleSelect(printer.id); }}
+                  className="absolute bottom-5 right-6 z-40 cursor-pointer"
+                  title={selected ? "取消选中" : "加入批量操作"}
+                >
+                  <div className={cornerCheckCls}>
+                    <Check className="w-4 h-4" strokeWidth={3.5} />
+                  </div>
+                </div>
+                {selected && (
+                  <div className="absolute inset-0 z-20 pointer-events-none bg-gradient-to-br from-[#0071e3]/5 via-transparent to-[#28cd41]/5 mix-blend-multiply" />
+                )}
+
+                <div className="aspect-video relative overflow-hidden bg-gradient-to-br from-[#f8fafc] to-[#f1f5f9] flex items-center justify-center border-b border-[#f5f5f7] shimmer-border">
                   {/* Background Pattern */}
                   <div className="absolute inset-0 opacity-[0.02] pointer-events-none select-none overflow-hidden">
                     <div className="absolute -top-5 -left-5 text-4xl font-black rotate-12 whitespace-nowrap">
@@ -486,10 +785,10 @@ export default function PrinterManager() {
                   </div>
 
                   {printer.image && !printer.image.includes('traeapi.us') && !printer.image.includes('placeholder') ? (
-                    <img 
-                      src={printer.image} 
-                      alt={printer.title} 
-                      className="w-full h-full object-cover z-10" 
+                    <img
+                      src={printer.image}
+                      alt={printer.title}
+                      className="w-full h-full object-cover z-10"
                       onError={(e) => {
                         const target = e.target as HTMLImageElement;
                         target.style.display = 'none';
@@ -502,7 +801,7 @@ export default function PrinterManager() {
                       }}
                     />
                   ) : null}
-                  
+
                   <div className={`brand-artistic-display ${printer.image && !printer.image.includes('traeapi.us') && !printer.image.includes('placeholder') ? 'hidden' : 'flex'} absolute inset-0 flex-col items-center justify-center p-4 text-center z-0`}>
                     <span className="text-3xl font-black tracking-tighter text-[#1d1d1f] select-none">
                       {printer.brand.split(' ')[0]}
@@ -512,15 +811,30 @@ export default function PrinterManager() {
                       {printer.brand}
                     </span>
                   </div>
-                  {printer.status === 'draft' && (
-                    <div className="absolute top-4 left-4 px-3 py-1 rounded-full bg-[#0071e3] text-white text-[10px] font-bold flex items-center gap-1 shadow-lg">
-                      <Zap className="w-3 h-3" />
-                      自动发现
-                    </div>
-                  )}
-                  <div className="absolute top-4 right-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button 
-                      onClick={() => {
+                  <div className="absolute top-4 left-4 flex gap-2">
+                    <button
+                      onClick={(e) => { e.stopPropagation(); toggleSelect(printer.id); }}
+                      className="w-8 h-8 rounded-xl bg-white/90 backdrop-blur border border-white shadow-md flex items-center justify-center text-[#86868b] hover:bg-white hover:text-[#0071e3] transition-all z-40"
+                      title={selected ? "取消选中" : "选中此项"}
+                    >
+                      {selected ? <CheckSquare2 className="w-4.5 h-4.5 text-[#0071e3]" /> : <Square className="w-4.5 h-4.5" />}
+                    </button>
+                    {printer.status === 'draft' && (
+                      <div className="px-3 py-1 rounded-full bg-[#0071e3] text-white text-[10px] font-bold flex items-center gap-1 shadow-lg">
+                        <Zap className="w-3 h-3" />
+                        自动发现
+                      </div>
+                    )}
+                    {printer.status === 'published' && (
+                      <div className={`px-3 py-1 rounded-full text-[10px] font-bold flex items-center gap-1 shadow-lg ${statusMap['published'].cls}`}>
+                        {statusMap['published'].label}
+                      </div>
+                    )}
+                  </div>
+                  <div className="absolute top-4 right-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity z-40">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
                         setEditingPrinter(printer);
                         setIsModalOpen(true);
                       }}
@@ -528,8 +842,8 @@ export default function PrinterManager() {
                     >
                       <Edit2 className="w-4 h-4" />
                     </button>
-                    <button 
-                      onClick={() => handleDelete(printer.id)}
+                    <button
+                      onClick={(e) => { e.stopPropagation(); handleDelete(printer.id); }}
                       className="p-2 rounded-full bg-white/90 backdrop-blur shadow-sm hover:text-red-500 transition-colors"
                     >
                       <Trash2 className="w-4 h-4" />
@@ -543,33 +857,72 @@ export default function PrinterManager() {
                   </div>
                   <h3 className="text-xl font-bold mb-4 text-[#1d1d1f]">{printer.title}</h3>
                   <p className="text-sm text-[#86868b] line-clamp-2 leading-relaxed">{printer.description}</p>
+                  <div className="flex items-center gap-1 mt-4">
+                    <span className="text-yellow-500">★</span>
+                    <span className="text-sm font-bold text-[#1d1d1f]">{printer.rating}</span>
+                  </div>
                 </div>
               </motion.div>
-            ))}
+            );})}
           </div>
         ) : (
           <div className="bg-white rounded-[2.5rem] overflow-hidden shadow-sm border border-white">
             <table className="w-full text-left">
               <thead>
                 <tr className="bg-[#f5f5f7] text-sm text-[#86868b] font-bold">
-                  <th className="px-8 py-6">机型名称</th>
+                  <th className="px-6 py-6 w-16">
+                    {(() => {
+                      const allSelected = selectedIds.size === filteredPrinters.length && filteredPrinters.length > 0;
+                      let cls = "w-8 h-8 rounded-xl border-2 flex items-center justify-center transition-all disabled:opacity-40";
+                      cls += allSelected
+                        ? " bg-gradient-to-br from-[#0071e3] to-[#28cd41] border-transparent text-white"
+                        : " bg-white border-[#d2d2d7] text-transparent hover:border-[#0071e3]";
+                      return (
+                        <button
+                          onClick={toggleSelectAll}
+                          disabled={filteredPrinters.length === 0}
+                          className={cls}
+                        >
+                          <Check className="w-4 h-4" strokeWidth={3.5} />
+                        </button>
+                      );
+                    })()}
+                  </th>
+                  <th className="px-2 py-6">机型名称</th>
                   <th className="px-8 py-6">品牌</th>
                   <th className="px-8 py-6">价格</th>
                   <th className="px-8 py-6">评分</th>
+                  <th className="px-8 py-6">状态</th>
                   <th className="px-8 py-6 text-right">操作</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#f5f5f7]">
-                {filteredPrinters.map((printer) => (
-                  <tr key={printer.id} className="hover:bg-[#f5f5f7]/50 transition-colors group">
-                    <td className="px-8 py-6">
+                {filteredPrinters.map((printer) => {
+                  const selected = selectedIds.has(printer.id);
+                  const rowCls = selected
+                    ? "group transition-colors bg-gradient-to-r from-[#0071e3]/5 via-white to-[#28cd41]/5"
+                    : "group transition-colors hover:bg-[#f5f5f7]/50";
+                  const btnCls = selected
+                    ? "w-8 h-8 rounded-xl border-2 shadow-sm flex items-center justify-center transition-all bg-gradient-to-br from-[#0071e3] to-[#28cd41] border-transparent text-white scale-105"
+                    : "w-8 h-8 rounded-xl border-2 shadow-sm flex items-center justify-center transition-all bg-white border-[#d2d2d7] text-transparent hover:border-[#0071e3] hover:text-[#0071e3]/40";
+                  return (
+                  <tr key={printer.id} className={rowCls}>
+                    <td className="px-6 py-6">
+                      <button
+                        onClick={() => toggleSelect(printer.id)}
+                        className={btnCls}
+                      >
+                        <Check className="w-4 h-4" strokeWidth={3.5} />
+                      </button>
+                    </td>
+                    <td className="px-2 py-6">
                       <div className="flex items-center gap-4">
                         <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-[#f8fafc] to-[#f1f5f9] overflow-hidden flex items-center justify-center relative border border-[#f5f5f7]">
                           {printer.image && !printer.image.includes('traeapi.us') && !printer.image.includes('placeholder') ? (
-                            <img 
-                              src={printer.image} 
+                            <img
+                              src={printer.image}
                               alt={printer.title}
-                              className="w-full h-full object-cover z-10" 
+                              className="w-full h-full object-cover z-10"
                               onError={(e) => {
                                 const target = e.target as HTMLImageElement;
                                 target.style.display = 'none';
@@ -597,9 +950,14 @@ export default function PrinterManager() {
                         <span>{printer.rating}</span>
                       </div>
                     </td>
+                    <td className="px-8 py-6">
+                      <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full uppercase tracking-wider ${statusMap[printer.status || 'published']?.cls || statusMap['published'].cls}`}>
+                        {statusMap[printer.status || 'published']?.label || printer.status}
+                      </span>
+                    </td>
                     <td className="px-8 py-6 text-right">
                       <div className="flex justify-end gap-3">
-                        <button 
+                        <button
                           onClick={() => {
                             setEditingPrinter(printer);
                             setIsModalOpen(true);
@@ -608,7 +966,7 @@ export default function PrinterManager() {
                         >
                           <Edit2 className="w-4 h-4" />
                         </button>
-                        <button 
+                        <button
                           onClick={() => handleDelete(printer.id)}
                           className="p-2 rounded-xl hover:bg-white text-[#86868b] hover:text-red-500 transition-all shadow-none hover:shadow-sm"
                         >
@@ -617,22 +975,107 @@ export default function PrinterManager() {
                       </div>
                     </td>
                   </tr>
-                ))}
+                );})}
               </tbody>
             </table>
           </div>
         )}
 
-        {/* Empty State */}
-        {!loading && filteredPrinters.length === 0 && (
-          <div className="text-center py-32 bg-white rounded-[3rem] shadow-sm border border-white">
-            <div className="w-20 h-20 rounded-full bg-[#f5f5f7] flex items-center justify-center mx-auto mb-6 text-[#86868b]">
-              <AlertCircle className="w-10 h-10" />
-            </div>
-            <h3 className="text-xl font-bold text-[#1d1d1f] mb-2">未找到匹配的设备</h3>
-            <p className="text-[#86868b]">尝试更换搜索词或新增一款设备</p>
-          </div>
-        )}
+        {/* 重复机型拦截弹窗 */}
+        <AnimatePresence>
+          {duplicateWarning && isModalOpen && (
+            <>
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="fixed inset-0 z-[250] bg-[#1d1d1f]/60 backdrop-blur-md"
+                onClick={() => setDuplicateWarning(null)}
+              />
+              <motion.div
+                initial={{ opacity: 0, y: 30, scale: 0.95 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: 30, scale: 0.95 }}
+                transition={{ type: "spring", stiffness: 380, damping: 30 }}
+                className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-[260] w-[min(92vw,620px)] bg-white rounded-[2.5rem] shadow-[0_40px_100px_-20px_rgba(0,0,0,0.4)] overflow-hidden"
+              >
+                <div className="bg-gradient-to-r from-amber-400 to-orange-500 px-8 py-5 flex items-start gap-4">
+                  <div className="w-12 h-12 rounded-2xl bg-white/20 flex items-center justify-center shrink-0">
+                    <AlertTriangle className="w-6 h-6 text-white" />
+                  </div>
+                  <div className="flex-grow pt-0.5">
+                    <div className="text-xs uppercase tracking-[0.22em] font-bold text-white/85">检测到重复机型</div>
+                    <div className="text-xl font-bold text-white mt-1">
+                      库中已存在 <span className="underline underline-offset-2">{duplicateWarning.matches.length}</span> 款相似型号
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => setDuplicateWarning(null)}
+                    className="w-9 h-9 rounded-xl bg-white/15 hover:bg-white/25 text-white flex items-center justify-center shrink-0 transition-colors"
+                  >
+                    <X className="w-4.5 h-4.5" />
+                  </button>
+                </div>
+
+                <div className="px-8 py-6 max-h-96 overflow-y-auto">
+                  <p className="text-[#86868b] text-sm leading-relaxed mb-5">
+                    以下机型与您正在新增的「<span className="font-bold text-[#1d1d1f]">{editingPrinter?.brand} {editingPrinter?.title}</span>」
+                    在品牌与型号维度高度相似，请确认是否重复录入：
+                  </p>
+                  <div className="space-y-3">
+                    {duplicateWarning.matches.map(m => (
+                      <div key={m.id} className="flex items-center gap-4 p-4 rounded-2xl border-2 border-amber-100 bg-gradient-to-r from-amber-50/60 to-orange-50/40 hover:border-amber-200 transition-colors">
+                        <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-white to-[#f8fafc] border border-amber-100 flex items-center justify-center shrink-0 overflow-hidden relative">
+                          {m.image && !m.image.includes('traeapi.us') ? (
+                            <img src={m.image} alt="" className="w-full h-full object-cover z-10"
+                              onError={(e) => (e.currentTarget.style.display = 'none')}
+                            />
+                          ) : null}
+                          <span className="absolute text-xs font-black text-amber-600/70">{m.brand[0]}</span>
+                        </div>
+                        <div className="flex-grow min-w-0">
+                          <div className="text-[11px] font-bold text-amber-600 uppercase tracking-wider mb-1">{m.brand}</div>
+                          <div className="font-bold text-[#1d1d1f] truncate">{m.title}</div>
+                          <div className="flex items-center gap-2 mt-1 text-xs">
+                            <span className="text-[#86868b]">{m.price}</span>
+                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${statusMap[m.status || 'published']?.cls || ''}`}>
+                              {statusMap[m.status || 'published']?.label}
+                            </span>
+                          </div>
+                        </div>
+                        <button
+                          onClick={() => {
+                            setEditingPrinter(m);
+                            setDuplicateWarning(null);
+                          }}
+                          className="px-4 py-2.5 rounded-xl bg-white border border-[#d2d2d7] hover:border-[#0071e3] hover:text-[#0071e3] text-[#1d1d1f] font-semibold text-sm transition-colors shrink-0"
+                        >
+                          编辑此款
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="bg-[#fafafa] border-t border-[#f5f5f7] px-8 py-5 flex flex-col md:flex-row gap-3 md:justify-end md:items-center">
+                  <button
+                    onClick={() => setDuplicateWarning(null)}
+                    className="px-5 py-3 rounded-2xl text-[#86868b] hover:text-[#1d1d1f] hover:bg-white font-semibold transition-all order-2 md:order-1"
+                  >
+                    返回修改
+                  </button>
+                  <button
+                    onClick={() => handleSave(true)}
+                    className="px-6 py-3 rounded-2xl bg-gradient-to-r from-amber-400 to-orange-500 hover:from-amber-500 hover:to-orange-600 text-white font-bold shadow-lg shadow-orange-500/25 flex items-center justify-center gap-2 transition-all order-1 md:order-2"
+                  >
+                    <AlertTriangle className="w-4 h-4" />
+                    确认仍要新增（仍可能重复）
+                  </button>
+                </div>
+              </motion.div>
+            </>
+          )}
+        </AnimatePresence>
 
         {/* Edit Modal */}
         <AnimatePresence>
@@ -679,7 +1122,7 @@ export default function PrinterManager() {
                           type="button"
                           onClick={handleSmartParse}
                           disabled={isParsing || !parseText.trim()}
-                          className="px-6 rounded-2xl bg-[#0071e3] text-white font-bold hover:bg-[#0077ed] transition-all flex flex-col items-center justify-center gap-2 disabled:opacity-50 shrink-0"
+                          className="px-6 rounded-2xl bg-[#0071e3] text-white font-bold hover:bg-[#0077ed] transition-all flex flex-col items-center justify-center gap-2 disabled:opacity-50 shrink-0 ripple-target"
                         >
                           {isParsing ? (
                             <Loader2 className="w-5 h-5 animate-spin" />
@@ -758,7 +1201,7 @@ export default function PrinterManager() {
                         <label className="block text-sm font-bold text-[#86868b] uppercase tracking-wider mb-2">封面图片</label>
                         <div className="space-y-4">
                           {editingPrinter?.image && (
-                            <div className="relative aspect-video rounded-[2rem] overflow-hidden bg-gradient-to-br from-[#f8fafc] to-[#f1f5f9] flex items-center justify-center border border-[#f5f5f7]">
+                            <div className="relative aspect-video rounded-[2rem] overflow-hidden bg-gradient-to-br from-[#f8fafc] to-[#f1f5f9] flex items-center justify-center border border-[#f5f5f7] shimmer-border">
                               {editingPrinter.image && !editingPrinter.image.includes('traeapi.us') && !editingPrinter.image.includes('placeholder') ? (
                                 <img 
                                   src={editingPrinter.image} 
@@ -868,7 +1311,7 @@ export default function PrinterManager() {
                   <button onClick={() => setIsModalOpen(false)} className="px-8 py-3 rounded-2xl hover:bg-[#f5f5f7] text-[#86868b] font-bold">
                     取消
                   </button>
-                  <button onClick={handleSave} className="btn-primary px-10 py-3 flex items-center gap-2">
+                  <button onClick={() => handleSave()} className="btn-primary px-10 py-3 flex items-center gap-2">
                     <Save className="w-4 h-4" />
                     保存修改
                   </button>

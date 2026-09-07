@@ -1,9 +1,10 @@
 import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Link, useNavigate } from "react-router-dom";
-import { User, Mail, Lock, ArrowRight, BookOpen, GraduationCap, Building2, X, ShieldCheck } from "lucide-react";
+import { User, Mail, Lock, ArrowRight, BookOpen, GraduationCap, Building2, X, ShieldCheck, FileText } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { useUserStore } from "@/store/useUserStore";
+import { showToast } from "@/lib/utils";
 
 export default function Register() {
   const { setUser } = useUserStore();
@@ -16,6 +17,7 @@ export default function Register() {
   const [error, setError] = useState<string | null>(null);
   const [isVerifying, setIsVerifying] = useState(false);
   const [otp, setOtp] = useState<string[]>(new Array(8).fill(""));
+  const [agreePolicy, setAgreePolicy] = useState(false);
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
   const navigate = useNavigate();
 
@@ -75,6 +77,10 @@ export default function Register() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!agreePolicy) {
+      setError("请先阅读并同意服务条款与隐私政策");
+      return;
+    }
     setLoading(true);
     setError(null);
 
@@ -155,7 +161,7 @@ export default function Register() {
         }
       }
 
-      alert("验证成功！欢迎加入睿造打印工坊");
+      showToast("success", "验证成功！欢迎加入睿造打印工坊");
       navigate("/");
     } catch (err: any) {
       setError(err.message || "验证失败，请检查验证码是否正确");
@@ -169,7 +175,7 @@ export default function Register() {
       <motion.div 
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="max-w-2xl w-full bg-white rounded-[3rem] p-10 md:p-16 shadow-xl border border-white/50 relative z-10"
+        className="max-w-2xl w-full bg-white rounded-[3rem] p-10 md:p-16 shadow-xl border border-white/50 relative z-10 shimmer-border group"
       >
         <div className="text-center mb-12">
           <h1 className="text-3xl font-bold mb-3 text-[#1d1d1f]">开启创意之旅</h1>
@@ -271,14 +277,45 @@ export default function Register() {
             </div>
           </div>
 
-          <div className="flex items-start gap-3 text-sm text-[#86868b]">
-            <input required type="checkbox" className="mt-1 w-4 h-4 rounded border-[#d2d2d7] text-[#0071e3] focus:ring-[#0071e3]/10" />
-            <p>
-              我已阅读并同意睿造打印工坊的{" "}
-              <button type="button" onClick={() => alert("服务条款加载中...")} className="text-[#0071e3] hover:underline">服务条款</button>{" "}
-              和{" "}
-              <button type="button" onClick={() => alert("隐私政策加载中...")} className="text-[#0071e3] hover:underline">隐私政策</button>
-            </p>
+          <div>
+            <label className="flex items-start gap-3 p-4 rounded-2xl bg-[#f5f5f7]/60 hover:bg-[#f5f5f7] transition-colors cursor-pointer border border-transparent hover:border-[#0071e3]/10">
+              <div className="mt-0.5">
+                <input 
+                  type="checkbox" 
+                  checked={agreePolicy}
+                  onChange={(e) => {
+                    setAgreePolicy(e.target.checked);
+                    if (e.target.checked && error) setError(null);
+                  }}
+                  className="w-4 h-4 rounded border-[#d2d2d7] text-[#0071e3] focus:ring-[#0071e3]/10"
+                />
+              </div>
+              <div className="flex-grow text-sm text-[#86868b] leading-relaxed">
+                我已阅读并同意睿造打印工坊的{" "}
+                <Link
+                  to="/terms"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={(e) => e.stopPropagation()}
+                  className="text-[#0071e3] font-semibold hover:underline inline-flex items-center gap-1"
+                >
+                  <FileText className="w-3.5 h-3.5" />
+                  服务条款
+                </Link>
+                {" "}与{" "}
+                <Link
+                  to="/privacy"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={(e) => e.stopPropagation()}
+                  className="text-[#0071e3] font-semibold hover:underline inline-flex items-center gap-1"
+                >
+                  <ShieldCheck className="w-3.5 h-3.5" />
+                  隐私政策
+                </Link>
+                ，并同意我们使用 Cookie 来提升体验。
+              </div>
+            </label>
           </div>
 
           <button 
@@ -315,7 +352,7 @@ export default function Register() {
               initial={{ opacity: 0, scale: 0.9, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.9, y: 20 }}
-              className="relative w-full max-w-xl bg-white rounded-[2.5rem] shadow-2xl overflow-visible p-8 md:p-12 z-[1000]"
+              className="relative w-full max-w-xl bg-white rounded-[2.5rem] shadow-2xl overflow-visible p-8 md:p-12 z-[1000] shimmer-border group"
             >
               <button 
                 onClick={() => setIsVerifying(false)}
@@ -387,7 +424,7 @@ export default function Register() {
                     type="button"
                     onClick={() => {
                       handleSubmit(new Event('submit') as any);
-                      alert("验证码已重新发送，请检查您的邮箱。");
+                      showToast("info", "验证码已重新发送，请检查您的邮箱。");
                     }}
                     className="w-full py-2 text-[#86868b] hover:text-[#0071e3] text-sm font-medium transition-colors"
                   >

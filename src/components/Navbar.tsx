@@ -27,30 +27,28 @@ export default function Navbar() {
   return (
     <nav className="glass-nav px-6 md:px-12 h-20 flex items-center justify-between sticky top-0 z-[100]">
       <Link to="/" className="flex items-center gap-3 group">
-        <div className="w-12 h-12 rounded-xl overflow-hidden bg-white shadow-sm transition-transform group-hover:scale-105">
+        <div className="w-12 h-12 rounded-xl overflow-hidden bg-white shadow-sm transition-all duration-500 group-hover:scale-105 group-hover:shadow-[0_10px_24px_-6px_rgba(0,113,227,0.35)] shimmer-border">
           <img 
             src="/logo.png" 
             alt="睿造打印工坊" 
             className="w-full h-full object-cover"
-            onError={(e) => {
-              (e.target as HTMLImageElement).src = "https://core-normal.traeapi.us/api/ide/v1/text_to_image?prompt=Cute+green+dragon+holding+a+print+sign+tech+logo+blue+circle+background&image_size=square";
-            }}
           />
         </div>
         <div className="flex flex-col">
-          <span className="text-xl font-bold tracking-tight text-[#1d1d1f] leading-none">睿造打印工坊</span>
+          <span className="text-xl font-bold tracking-tight text-[#1d1d1f] leading-none transition-colors group-hover:text-[#0071e3]">睿造打印工坊</span>
           <span className="text-[12px] text-[#86868b] font-medium mt-1">Rayzo print studio</span>
         </div>
       </Link>
       
       <div className="hidden lg:flex items-center gap-8 text-[15px] font-medium text-[#1d1d1f]">
-        <Link to="/" className="hover:text-[#0071e3] transition-colors">首页</Link>
-        <Link to="/products" className="hover:text-[#0071e3] transition-colors">集成方案</Link>
-        <Link to="/resources" className="hover:text-[#0071e3] transition-colors">课件资源</Link>
-        <Link to="/advice" className="hover:text-[#0071e3] transition-colors">硬件评测</Link>
+        <Link to="/" className="hover:text-[#0071e3] transition-colors nav-link-scan">首页</Link>
+        <Link to="/products" className="hover:text-[#0071e3] transition-colors nav-link-scan">原创周边</Link>
+        <Link to="/resources" className="hover:text-[#0071e3] transition-colors nav-link-scan">课件资源</Link>
+        <Link to="/advice" className="hover:text-[#0071e3] transition-colors nav-link-scan">创作工具</Link>
+        <Link to="/team" className="hover:text-[#0071e3] transition-colors nav-link-scan">关于我们</Link>
         {isAdmin && (
-          <Link to="/admin" className="text-[#0071e3] flex items-center gap-1 font-bold">
-            <LayoutDashboard className="w-4 h-4" />
+          <Link to="/admin" className="text-[#0071e3] flex items-center gap-1 font-bold nav-link-scan group">
+            <LayoutDashboard className="w-4 h-4 transition-transform duration-300 group-hover:rotate-12" />
             后台管理
           </Link>
         )}

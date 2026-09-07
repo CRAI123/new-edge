@@ -11,7 +11,7 @@ interface Message {
 const AIChatAssistant: React.FC = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([
-    { id: 1, text: "你好！我是睿造打印工坊的智能选购助手。我可以根据你的需求推荐最适合的 3D 打印机。请问你主要打算用来做什么？（例如：教育方案、手办制作、工业原型等）", sender: 'ai' }
+    { id: 1, text: "你好！我是睿造AI助手。我可以帮你查找信息科技课件、了解原创周边、以及解答创作工具使用问题。请问有什么可以帮你的？（例如：课件资源、IP周边、创作工具等）", sender: 'ai' }
   ]);
   const [inputText, setInputText] = useState('');
   const [isTyping, setIsTyping] = useState(false);
@@ -43,18 +43,18 @@ const AIChatAssistant: React.FC = () => {
       let aiResponse = "";
       const input = userMsg.text.toLowerCase();
 
-      if (input.includes("教育") || input.includes("学校") || input.includes("学生")) {
-        aiResponse = "针对教育场景，我强烈推荐拓竹 (Bambu Lab) 的 A1 mini。它操作极其简单，拥有全自动校准功能，而且安全性很高，非常适合中小学信息科技课堂。";
-      } else if (input.includes("手办") || input.includes("模型") || input.includes("精度")) {
-        aiResponse = "如果你追求极致的表面精度，光固化打印机是首选。纵维立方 (Anycubic) 的 Photon Mono M5s 拥有 12K 分辨率，能够呈现极其细腻的纹理。";
-      } else if (input.includes("工业") || input.includes("原型") || input.includes("强度") || input.includes("碳纤维")) {
-        aiResponse = "工业原型或高强度零件推荐使用拓竹 X1-Carbon 或 创想 K1C。它们都支持碳纤维材料，且具备极高的打印速度和结构强度。";
-      } else if (input.includes("速度") || input.includes("快")) {
-        aiResponse = "如果你追求极致的打印速度，闪铸 (Flashforge) 的 Adventurer 5M Pro 拥有高达 600mm/s 的速度，是目前的竞速标杆。";
-      } else if (input.includes("预算") || input.includes("便宜") || input.includes("性价比")) {
-        aiResponse = "性价比方面，A1 mini (¥1,599) 是入门的首选。如果你需要封闭机箱，创想 K1C 在 3000 元价位段表现非常出色。";
+      if (input.includes("教育") || input.includes("学校") || input.includes("学生") || input.includes("课件") || input.includes("课程")) {
+        aiResponse = "针对教育场景，我推荐你前往 /resources 课件资源页！那里有涵盖小学到高中全套信息科技课件包，包括创意设计、编程项目等丰富教学资源。";
+      } else if (input.includes("周边") || input.includes("ip") || input.includes("文创") || input.includes("产品")) {
+        aiResponse = "关于原创IP周边，你可以在 /products 页面查看睿造小睿等原创IP形象和周边产品。每款设计都融入了独特的创意灵感哦！";
+      } else if (input.includes("工具") || input.includes("创作") || input.includes("参数") || input.includes("计算")) {
+        aiResponse = "创作工具箱在 /advice 页面！那里有素材切片参数参考、创意成本计算器、模板素材库等实用工具，帮助你高效创作。";
+      } else if (input.includes("素材") || input.includes("模板")) {
+        aiResponse = "创作素材和模板可以在 /advice 创作工具箱中找到，包括创意设计模板、编程项目模板等多种资源。";
+      } else if (input.includes("社群") || input.includes("活动")) {
+        aiResponse = "想加入科创社群或了解活动，可以点击联系页面加入我们的创作者社群，定期举办线上线下创意活动！";
       } else {
-        aiResponse = "听起来很有意思！为了给出更精准的建议，你能告诉我你的具体使用场景（如教育、模型制作）或者你的预算范围吗？";
+        aiResponse = "听起来很有意思！你可以试试问我关于课件资源、原创周边、创作工具使用或社群活动的问题哦！";
       }
 
       const aiMsg: Message = {
@@ -74,9 +74,9 @@ const AIChatAssistant: React.FC = () => {
         whileHover={{ scale: 1.1 }}
         whileTap={{ scale: 0.9 }}
         onClick={() => setIsOpen(true)}
-        className="fixed bottom-8 right-8 z-[100] w-16 h-16 rounded-full bg-gradient-to-br from-[#0071e3] to-[#00c6ff] text-white shadow-2xl flex items-center justify-center"
+        className="fixed bottom-8 right-8 z-[100] w-16 h-16 rounded-full bg-gradient-to-br from-[#0071e3] to-[#00c6ff] text-white shadow-2xl flex items-center justify-center shimmer-border avatar-ring badge-pulse"
       >
-        <Sparkles className="w-8 h-8" />
+        <Sparkles className="w-8 h-8 relative z-10" />
       </motion.button>
 
       {/* Chat Window */}
@@ -86,7 +86,7 @@ const AIChatAssistant: React.FC = () => {
             initial={{ opacity: 0, scale: 0.9, y: 20, transformOrigin: 'bottom right' }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.9, y: 20 }}
-            className="fixed bottom-28 right-8 z-[101] w-[400px] h-[600px] bg-white rounded-[2.5rem] shadow-3xl flex flex-col overflow-hidden border border-[#d2d2d7]/30"
+            className="fixed bottom-28 right-8 z-[101] w-[400px] h-[600px] bg-white rounded-[2.5rem] shadow-3xl flex flex-col overflow-hidden border border-[#d2d2d7]/30 shimmer-card group"
           >
             {/* Header */}
             <div className="p-6 bg-[#f5f5f7] border-b border-[#d2d2d7]/30 flex items-center justify-between">
@@ -95,7 +95,7 @@ const AIChatAssistant: React.FC = () => {
                   <Bot className="w-6 h-6" />
                 </div>
                 <div>
-                  <h3 className="font-bold text-[#1d1d1f]">选购助手预览</h3>
+                  <h3 className="font-bold text-[#1d1d1f]">睿造AI助手预览</h3>
                   <div className="flex items-center gap-1.5">
                     <span className="w-2 h-2 rounded-full bg-[#28cd41] animate-pulse" />
                     <span className="text-[10px] font-medium text-[#86868b] uppercase tracking-wider">在线帮助</span>
@@ -148,7 +148,7 @@ const AIChatAssistant: React.FC = () => {
                   value={inputText}
                   onChange={(e) => setInputText(e.target.value)}
                   onKeyPress={(e) => e.key === 'Enter' && handleSend()}
-                  placeholder="询问选购建议..."
+                  placeholder="询问课件/工具使用..."
                   className="w-full pl-6 pr-14 py-4 bg-[#f5f5f7] rounded-full text-sm border-none focus:ring-2 focus:ring-[#0071e3]/20 transition-all outline-none"
                 />
                 <button

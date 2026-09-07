@@ -1,9 +1,10 @@
 import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Link, useNavigate } from "react-router-dom";
-import { Mail, Lock, ArrowRight, Github, X, ShieldCheck } from "lucide-react";
+import { Mail, Lock, ArrowRight, Github, X, ShieldCheck, FileText } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { useUserStore } from "@/store/useUserStore";
+import { safeAlert } from "@/lib/utils";
 
 export default function Login() {
   const [loading, setLoading] = useState(false);
@@ -12,6 +13,7 @@ export default function Login() {
   const [error, setError] = useState<string | null>(null);
   const [isVerifying, setIsVerifying] = useState(false);
   const [otp, setOtp] = useState<string[]>(new Array(8).fill(""));
+  const [agreePolicy, setAgreePolicy] = useState(false);
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
   const navigate = useNavigate();
   const { setUser, setAdmin } = useUserStore();
@@ -20,6 +22,10 @@ export default function Login() {
     e.preventDefault();
     if (!email) {
       setError("请输入电子邮箱");
+      return;
+    }
+    if (!agreePolicy) {
+      setError("请先阅读并同意服务条款与隐私政策");
       return;
     }
     setLoading(true);
@@ -143,6 +149,10 @@ export default function Login() {
 
   const handlePasswordLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!agreePolicy) {
+      setError("请先阅读并同意服务条款与隐私政策");
+      return;
+    }
     setLoading(true);
     setError(null);
 
@@ -181,6 +191,10 @@ export default function Login() {
   };
 
   const handleGithubLogin = async () => {
+    if (!agreePolicy) {
+      setError("请先阅读并同意服务条款与隐私政策");
+      return;
+    }
     try {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'github',
@@ -204,7 +218,7 @@ export default function Login() {
       <motion.div 
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="max-w-md w-full bg-white rounded-[2.5rem] p-10 md:p-12 shadow-xl border border-white/50"
+        className="max-w-md w-full bg-white rounded-[2.5rem] p-10 md:p-12 shadow-xl border border-white/50 shimmer-border group"
       >
         <div className="text-center mb-10">
           <h1 className="text-3xl font-bold mb-3 text-[#1d1d1f]">欢迎回来</h1>
@@ -295,6 +309,48 @@ export default function Login() {
           </button>
         </div>
 
+        {/* 隐私政策同意 */}
+        <div className="mt-8">
+          <label className="flex items-start gap-3 p-4 rounded-2xl bg-[#f5f5f7]/60 hover:bg-[#f5f5f7] transition-colors cursor-pointer border border-transparent hover:border-[#0071e3]/10">
+            <div className="mt-0.5">
+              <input 
+                type="checkbox" 
+                checked={agreePolicy}
+                onChange={(e) => {
+                  setAgreePolicy(e.target.checked);
+                  if (e.target.checked && error) setError(null);
+                }}
+                className="w-4 h-4 rounded border-[#d2d2d7] text-[#0071e3] focus:ring-[#0071e3]/10"
+              />
+            </div>
+            <div className="flex-grow text-sm text-[#86868b] leading-relaxed">
+              我已阅读并同意睿造打印工坊的{" "}
+              <Link
+                to="/terms"
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={(e) => e.stopPropagation()}
+                className="text-[#0071e3] font-semibold hover:underline inline-flex items-center gap-1"
+              >
+                <FileText className="w-3.5 h-3.5" />
+                服务条款
+              </Link>
+              {" "}与{" "}
+              <Link
+                to="/privacy"
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={(e) => e.stopPropagation()}
+                className="text-[#0071e3] font-semibold hover:underline inline-flex items-center gap-1"
+              >
+                <ShieldCheck className="w-3.5 h-3.5" />
+                隐私政策
+              </Link>
+              ，并同意我们使用 Cookie 来提升体验。
+            </div>
+          </label>
+        </div>
+
         <p className="mt-10 text-center text-sm text-[#86868b]">
           还没有账号？{" "}
           <Link to="/register" className="text-[#0071e3] font-semibold hover:underline">
@@ -318,7 +374,7 @@ export default function Login() {
               initial={{ opacity: 0, scale: 0.9, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.9, y: 20 }}
-              className="relative w-full max-w-xl bg-white rounded-[2.5rem] shadow-2xl overflow-visible p-8 md:p-12 z-[1000]"
+              className="relative w-full max-w-xl bg-white rounded-[2.5rem] shadow-2xl overflow-visible p-8 md:p-12 z-[1000] shimmer-border group"
             >
               <button 
                 onClick={() => setIsVerifying(false)}
