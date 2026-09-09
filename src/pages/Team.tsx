@@ -5,19 +5,13 @@ const members = [
     name: "刘宸睿",
     role: "创始人 · 学生创客 ",
     bio: "中学生创客 · 睿造打印工坊发起人，热爱三维设计与科创教育，希望把创意智造和原创IP的乐趣带给更多同学。",
-    image: "https://core-normal.traeapi.us/api/ide/v1/text_to_image?prompt=Teenage+student+maker+portrait+in+modern+creative+studio+clean+natural+lighting+Apple+style+minimalist&image_size=square"
+    image: "https://core-normal.trae.ai/api/ide/v1/text_to_image?prompt=realistic+manga+portrait+teenage+boy+student+maker+friendly+warm+smile+soft+blue+hoodie+clean+line+art+cell+shading+simple+plain+white+background+no+brand+logo+no+watermark+authentic+anime+style&image_size=square_hd"
   },
   {
     name: "何佳奇",
     role: "联合创始人 · 学生创客 · 产品负责人",
     bio: "中学生创客 · 产品负责人，负责项目落地执行，高效推进团队创意变成现实。",
-    image: "https://core-normal.traeapi.us/api/ide/v1/text_to_image?prompt=Teenage+male+student+with+glasses+in+maker+lab+clean+portrait+bright+lighting+minimal&image_size=square"
-  },
-  {
-    name: "王睿",
-    role: "IP与设计负责人",
-    bio: "学生团队核心成员，负责睿造原创IP形象、文创周边与视觉设计，希望用温暖的设计点亮创客作品。",
-    image: "https://core-normal.traeapi.us/api/ide/v1/text_to_image?prompt=Teenage+female+art+student+portrait+in+colorful+design+studio+clean+bright+minimal&image_size=square"
+    image: "https://core-normal.trae.ai/api/ide/v1/text_to_image?prompt=realistic+manga+portrait+teenage+boy+student+product+manager+energetic+confident+expression+casual+jacket+clean+line+art+cell+shading+simple+plain+light+gray+background+no+brand+logo+no+watermark+authentic+anime+style&image_size=square_hd"
   }
 ];
 
@@ -42,7 +36,7 @@ export default function Team() {
             </p>
           </motion.div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-12">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-10 md:gap-16 max-w-5xl mx-auto">
             {members.map((member, idx) => (
               <motion.div
                 key={idx}
@@ -50,17 +44,28 @@ export default function Team() {
                 whileInView={{ opacity: 1, scale: 1, y: 0 }}
                 viewport={{ once: true, margin: "-60px" }}
                 transition={{ delay: idx * 0.15, duration: 0.8 }}
-                whileHover={{ y: -6 }}
-                className="text-center"
+                whileHover={{ y: -8 }}
+                className="rounded-[2.5rem] bg-gradient-to-br from-white to-[#f5f5f7] p-10 md:p-12 shadow-sm border border-white hover:shadow-2xl hover:border-[#0071e3]/15 transition-all duration-500 text-center relative overflow-hidden group card-hover shimmer-border"
               >
-                <div className="w-48 h-48 mx-auto mb-6 shadow-lg grayscale hover:grayscale-0 transition-all duration-700 shimmer-border group relative avatar-ring tilt-card rounded-full overflow-hidden">
-                  <div className="w-full h-full rounded-full overflow-hidden">
-                    <img src={member.image} alt={member.name} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" />
+                <div className="absolute top-0 left-0 w-40 h-40 rounded-full bg-[#0071e3]/8 blur-3xl group-hover:bg-[#0071e3]/15 transition-colors opacity-60"></div>
+                <div className="absolute bottom-0 right-0 w-40 h-40 rounded-full bg-[#28cd41]/8 blur-3xl group-hover:bg-[#28cd41]/15 transition-colors opacity-60"></div>
+                <div className="relative z-10">
+                  <div className="relative w-52 h-52 mx-auto mb-8">
+                    <div className="absolute inset-0 rounded-full bg-gradient-to-br from-[#0071e3]/30 to-[#28cd41]/30 blur-xl animate-halo"></div>
+                    <img 
+                      src={member.image} 
+                      alt={member.name} 
+                      className="relative w-full h-full object-cover rounded-full border-4 border-white shadow-2xl transition-transform duration-500 group-hover:scale-105" 
+                    />
                   </div>
+                  <h3 className="text-3xl font-bold mb-3 text-[#1d1d1f]">{member.name}</h3>
+                  <div className="mb-5">
+                    <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-[#E6F4FF] text-[#0071e3] font-semibold text-sm border border-[#0071e3]/15 chip">
+                      {member.role}
+                    </span>
+                  </div>
+                  <p className="text-[#86868b] leading-relaxed text-[15px]">{member.bio}</p>
                 </div>
-                <h3 className="text-2xl font-bold mb-2 text-[#1d1d1f]">{member.name}</h3>
-                <p className="text-[#0071e3] font-medium mb-4 chip inline-block px-3 py-1 rounded-full bg-[#E6F4FF]">{member.role}</p>
-                <p className="text-[#86868b] leading-relaxed px-4">{member.bio}</p>
               </motion.div>
             ))}
           </div>
@@ -110,7 +115,7 @@ export default function Team() {
               className="rounded-[3rem] overflow-hidden shadow-2xl shimmer-border group animate-float tilt-card"
             >
               <img 
-                src="https://core-normal.traeapi.us/api/ide/v1/text_to_image?prompt=Modern+minimalist+team+workspace+natural+lighting+plants+clean+design+Apple+style&image_size=portrait_4_3" 
+                src="https://core-normal.trae.ai/api/ide/v1/text_to_image?prompt=realistic+manga+illustration+creative+workspace+studio+teenage+students+collaborating+maker+desk+laptop+3D+printer+clean+line+art+cell+shading+soft+natural+lighting+simple+light+wooden+interior+no+brand+logo+no+watermark+authentic+anime+style&image_size=landscape_16_9" 
                 alt="Workspace"
                 className="w-full h-full object-cover transition-transform duration-[1.4s] group-hover:scale-105"
               />

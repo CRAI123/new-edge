@@ -318,7 +318,7 @@ export default function Resources() {
               
               <div className="aspect-square w-full rounded-[2rem] bg-[#f5f5f7] flex items-center justify-center mb-8 border border-[#d2d2d7]/30 shadow-inner overflow-hidden p-4 shimmer-border">
                 <img 
-                  src="https://core-normal.traeapi.us/api/ide/v1/text_to_image?prompt=Realistic+WeChat+QR+code+mockup+clean+minimalist&image_size=square" 
+                  src="https://core-normal.trae.ai/api/ide/v1/text_to_image?prompt=realistic+manga+illustration+QR+code+mockup+simple+clean+design+soft+blue+accent+clean+line+art+cell+shading+simple+plain+white+background+no+brand+logo+no+watermark+authentic+anime+style&image_size=square" 
                   alt="QR Code" 
                   className="w-full h-full object-contain"
                 />

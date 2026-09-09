@@ -103,7 +103,7 @@ export default function Contact() {
                 className="mt-12 rounded-3xl overflow-hidden aspect-video bg-[#f5f5f7] shimmer-border group tilt-card"
               >
                 <img 
-                  src="https://core-normal.traeapi.us/api/ide/v1/text_to_image?prompt=Minimalist+map+illustration+of+a+city+district+with+a+single+blue+pin+clean+Apple+style&image_size=landscape_4_3" 
+                  src="https://core-normal.trae.ai/api/ide/v1/text_to_image?prompt=realistic+manga+illustration+city+street+map+with+simple+location+pin+marker+clean+line+art+cell+shading+soft+light+colors+simple+plain+background+no+brand+logo+no+watermark+authentic+anime+style&image_size=landscape_4_3" 
                   alt="Map"
                   className="w-full h-full object-cover grayscale opacity-70 group-hover:opacity-90 group-hover:grayscale-0 transition-all duration-700 group-hover:scale-105"
                 />

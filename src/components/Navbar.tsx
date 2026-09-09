@@ -42,6 +42,7 @@ export default function Navbar() {
       
       <div className="hidden lg:flex items-center gap-8 text-[15px] font-medium text-[#1d1d1f]">
         <Link to="/" className="hover:text-[#0071e3] transition-colors nav-link-scan">首页</Link>
+        <Link to="/printers" className="hover:text-[#0071e3] transition-colors nav-link-scan">设备方案</Link>
         <Link to="/products" className="hover:text-[#0071e3] transition-colors nav-link-scan">原创周边</Link>
         <Link to="/resources" className="hover:text-[#0071e3] transition-colors nav-link-scan">课件资源</Link>
         <Link to="/advice" className="hover:text-[#0071e3] transition-colors nav-link-scan">创作工具</Link>

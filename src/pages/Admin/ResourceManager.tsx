@@ -70,10 +70,7 @@ export default function ResourceManager() {
   const requestResourceApi = async <T,>(path: string, options: RequestInit = {}) => {
     const token = await getAdminAccessToken();
     const headers = new Headers(options.headers);
-    const apiBaseUrl = import.meta.env.VITE_API_BASE_URL
-      || (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1"
-        ? "http://localhost:3001"
-        : "");
+    const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || "";
 
     headers.set("Authorization", `Bearer ${token}`);
     if (options.body && !headers.has("Content-Type")) {

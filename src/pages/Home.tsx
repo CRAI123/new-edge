@@ -1,5 +1,5 @@
 import { motion, useInView } from "framer-motion";
-import { ArrowRight, Zap, BookOpen, ShoppingBag, Sparkles, Award, Users, FileCheck, Palette } from "lucide-react";
+import { ArrowRight, Zap, BookOpen, ShoppingBag, Sparkles, Award, Users, FileCheck, Palette, Printer } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useEffect, useRef, useState } from "react";
 
@@ -105,7 +105,7 @@ export default function Home() {
           className="mt-20 w-full max-w-5xl aspect-video rounded-[3rem] shadow-2xl overflow-hidden bg-white border border-white/50 shimmer-border group animate-float z-10 tilt-card"
         >
           <img 
-            src="https://core-normal.traeapi.us/api/ide/v1/text_to_image?prompt=Teenage+students+makers+working+in+creative+studio+3D+design+on+computer+colorful+IP+merch+display+clean+Apple+style+lighting+bright+airy+inspiring&image_size=landscape_16_9" 
+            src="https://core-normal.trae.ai/api/ide/v1/text_to_image?prompt=realistic+manga+illustration+teenage+students+creative+maker+studio+3D+design+computer+colorful+mascot+robot+clean+line+art+cell+shading+soft+lighting+simple+bright+background+no+brand+logo+no+watermark+authentic+anime+style&image_size=landscape_16_9" 
             alt="Rayzo Print Studio"
             className="w-full h-full object-cover transition-transform duration-[1.4s] group-hover:scale-105"
           />
@@ -131,17 +131,17 @@ export default function Home() {
               color="bg-[#28cd41]/20"
             />
             <StatCounter
-              target={8}
+              target={42}
               suffix="+"
-              label="创作小工具"
-              icon={<Sparkles className="w-6 h-6 text-[#0071e3]" />}
+              label="展示机型方案"
+              icon={<Printer className="w-6 h-6 text-[#0071e3]" />}
               color="bg-[#00c6ff]/20"
             />
             <StatCounter
-              target={36}
+              target={8}
               suffix="+"
-              label="活跃小创客"
-              icon={<Award className="w-6 h-6 text-[#28cd41]" />}
+              label="创作小工具"
+              icon={<Sparkles className="w-6 h-6 text-[#28cd41]" />}
               color="bg-[#28cd41]/20"
             />
           </div>
@@ -183,12 +183,19 @@ export default function Home() {
             </motion.p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-8">
             {[
+              {
+                icon: <Printer className="w-10 h-10 text-[#0071e3]" />,
+                title: "设备方案参考",
+                desc: "创客团队真实使用整理的3D打印设备选型速览，含优缺点对比，供选购前综合参考。",
+                link: "/printers",
+                accent: "from-sky-50 to-transparent"
+              },
               {
                 icon: <ShoppingBag className="w-10 h-10 text-[#0071e3]" />,
                 title: "原创IP周边",
-                desc: "睿造原创IP形象设计与周边文创产品，让创意走出屏幕，成为触手可及的陪伴。",
+                desc: "即将上线，价格超低。睿造原创IP形象设计与周边文创产品，敬请期待。",
                 link: "/products",
                 accent: "from-blue-50 to-transparent"
               },
@@ -200,11 +207,11 @@ export default function Home() {
                 accent: "from-emerald-50 to-transparent"
               },
               {
-                icon: <Palette className="w-10 h-10 text-[#0071e3]" />,
+                icon: <Palette className="w-10 h-10 text-[#28cd41]" />,
                 title: "创作工具箱",
                 desc: "为创作者打造的实用小工具集合，包含素材模板、参数计算器与创意灵感指南。",
                 link: "/advice",
-                accent: "from-sky-50 to-transparent"
+                accent: "from-emerald-50 to-transparent"
               }
             ].map((service, idx) => (
               <motion.div
@@ -214,7 +221,7 @@ export default function Home() {
                 viewport={{ once: true, margin: "-60px" }}
                 transition={{ duration: 0.8, delay: idx * 0.12, ease: [0.22, 1, 0.36, 1] }}
                 whileHover={{ y: -10 }}
-                className={`p-10 rounded-[2.5rem] bg-gradient-to-br ${service.accent} ${idx === 1 ? 'md:-translate-y-4' : ''} bg-opacity-40 border border-transparent hover:border-[#0071e3]/10 transition-all duration-500 flex flex-col h-full card-hover shimmer-border group tilt-card`}
+                className={`p-10 rounded-[2.5rem] bg-gradient-to-br ${service.accent} bg-opacity-40 border border-transparent hover:border-[#0071e3]/10 transition-all duration-500 flex flex-col h-full card-hover shimmer-border group tilt-card`}
               >
                 <div className="mb-8 p-4 bg-white w-fit rounded-2xl shadow-sm glow-ring relative">{service.icon}</div>
                 <h3 className="text-2xl font-bold mb-4">{service.title}</h3>
@@ -311,7 +318,7 @@ export default function Home() {
               className="rounded-[3rem] shadow-2xl overflow-hidden relative shimmer-border group animate-float tilt-card"
             >
               <img 
-                src="https://core-normal.traeapi.us/api/ide/v1/text_to_image?prompt=3D+model+of+a+cute+robot+on+a+computer+screen+elementary+school+student+designing+Apple+aesthetic&image_size=square_hd" 
+                src="https://core-normal.trae.ai/api/ide/v1/text_to_image?prompt=realistic+manga+illustration+cute+3D+robot+mascot+character+on+computer+screen+elementary+school+child+happy+designing+clean+line+art+cell+shading+soft+pastel+colors+simple+clean+white+background+no+brand+logo+no+watermark+authentic+anime+style&image_size=square_hd" 
                 alt="Education Resources"
                 className="w-full h-full object-cover transition-transform duration-[1.4s] group-hover:scale-105"
               />

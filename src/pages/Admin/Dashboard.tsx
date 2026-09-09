@@ -6,7 +6,9 @@ import {
   TrendingUp, 
   ChevronRight,
   Package,
-  Clock
+  Clock,
+  Printer,
+  FileCheck
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useState, useEffect } from "react";
@@ -152,7 +154,7 @@ export default function AdminDashboard() {
           <div className="lg:col-span-2 space-y-8">
             <div className="bg-white rounded-[2.5rem] p-8 shadow-sm border border-white shimmer-border group relative z-10">
               <h2 className="text-xl font-bold mb-6 text-[#1d1d1f]">快速入口</h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 <Link to="/admin/users" className="group p-6 rounded-3xl bg-[#f5f5f7] hover:bg-[#0071e3] transition-all duration-300">
                   <div className="flex items-center justify-between">
                     <div>
@@ -169,6 +171,36 @@ export default function AdminDashboard() {
                       <p className="text-sm text-[#86868b] group-hover:text-white/80 transition-colors">上传与维护教育资源</p>
                     </div>
                     <ChevronRight className="w-5 h-5 text-[#86868b] group-hover:text-white group-hover:translate-x-1 transition-all" />
+                  </div>
+                </Link>
+                <Link to="/admin/printers" className="group p-6 rounded-3xl bg-[#f5f5f7] hover:bg-[#28cd41] transition-all duration-300">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="font-bold text-lg group-hover:text-white transition-colors">设备管理</h3>
+                      <p className="text-sm text-[#86868b] group-hover:text-white/80 transition-colors">维护前台打印机展示数据</p>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <Printer className="w-4 h-4 text-[#86868b] group-hover:text-white transition-colors" />
+                      <ChevronRight className="w-5 h-5 text-[#86868b] group-hover:text-white group-hover:translate-x-1 transition-all" />
+                    </div>
+                  </div>
+                </Link>
+                <Link to="/admin/orders" className="group p-6 rounded-3xl bg-[#f5f5f7] hover:bg-[#0071e3] transition-all duration-300">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="font-bold text-lg group-hover:text-white transition-colors">订单管理</h3>
+                      <p className="text-sm text-[#86868b] group-hover:text-white/80 transition-colors">处理客户订单与状态</p>
+                    </div>
+                    <Package className="w-5 h-5 text-[#86868b] group-hover:text-white group-hover:translate-x-1 transition-all" />
+                  </div>
+                </Link>
+                <Link to="/order-generator" className="group p-6 rounded-3xl bg-gradient-to-br from-violet-50 to-white hover:from-[#8b5cf6] hover:to-[#7c3aed] transition-all duration-300 border border-violet-100 hover:border-transparent">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="font-bold text-lg group-hover:text-white transition-colors">订单生成器</h3>
+                      <p className="text-sm text-[#86868b] group-hover:text-white/80 transition-colors">自定义订单与分享图</p>
+                    </div>
+                    <FileCheck className="w-5 h-5 text-[#8b5cf6] group-hover:text-white group-hover:translate-x-1 transition-all" />
                   </div>
                 </Link>
               </div>

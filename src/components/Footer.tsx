@@ -31,10 +31,10 @@ export default function Footer() {
         <div>
           <h4 className="text-[#1d1d1f] font-semibold mb-6">核心业务</h4>
           <ul className="flex flex-col gap-3">
+            <li><Link to="/printers" className="hover:text-[#0071e3] transition-colors nav-link-scan inline-block">设备方案参考</Link></li>
             <li><Link to="/products" className="hover:text-[#0071e3] transition-colors nav-link-scan inline-block">原创IP周边</Link></li>
             <li><Link to="/resources" className="hover:text-[#0071e3] transition-colors nav-link-scan inline-block">信息科技课件</Link></li>
             <li><Link to="/advice" className="hover:text-[#0071e3] transition-colors nav-link-scan inline-block">创作工具箱</Link></li>
-            <li><Link to="/products" className="hover:text-[#0071e3] transition-colors nav-link-scan inline-block">科创活动与社群</Link></li>
           </ul>
         </div>
 

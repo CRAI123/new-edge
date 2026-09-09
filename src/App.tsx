@@ -11,14 +11,20 @@ import Team from "@/pages/Team";
 import Contact from "@/pages/Contact";
 import Resources from "@/pages/Resources";
 import Advice from "@/pages/Advice";
+import Printers from "@/pages/Printers";
 import Login from "@/pages/Login";
 import Register from "@/pages/Register";
 import Privacy from "@/pages/Privacy";
 import Terms from "@/pages/Terms";
 import Sales from "@/pages/Sales";
+import OrderGenerator from "@/pages/OrderGenerator";
 import AdminDashboard from "@/pages/Admin/Dashboard";
 import ResourceManager from "@/pages/Admin/ResourceManager";
 import UserManager from "@/pages/Admin/UserManager";
+import PrinterManager from "@/pages/Admin/PrinterManager";
+import AdminOrderManager from "@/pages/Admin/OrderManager";
+import LogisticsTracker from "@/pages/LogisticsTracker";
+import OrderTrack from "@/pages/OrderTrack";
 import { supabase } from "@/lib/supabase";
 import { useUserStore } from "@/store/useUserStore";
 
@@ -176,6 +182,7 @@ export default function App() {
               <Route path="/products" element={<Products />} />
               <Route path="/resources" element={<Resources />} />
               <Route path="/advice" element={<Advice />} />
+              <Route path="/printers" element={<Printers />} />
               <Route path="/team" element={<Team />} />
               <Route path="/contact" element={<Contact />} />
               <Route path="/login" element={<Login />} />
@@ -183,11 +190,16 @@ export default function App() {
               <Route path="/privacy" element={<Privacy />} />
               <Route path="/terms" element={<Terms />} />
               <Route path="/sales" element={<Sales />} />
+              <Route path="/order-generator" element={<OrderGenerator />} />
+              <Route path="/logistics" element={<LogisticsTracker />} />
+              <Route path="/order/:orderNo" element={<OrderTrack />} />
               
               {/* Admin Routes */}
               <Route path="/admin" element={<AdminDashboard />} />
               <Route path="/admin/resources" element={<ResourceManager />} />
               <Route path="/admin/users" element={<UserManager />} />
+              <Route path="/admin/printers" element={<PrinterManager />} />
+              <Route path="/admin/orders" element={<AdminOrderManager />} />
             </Routes>
           </main>
           <Footer />
