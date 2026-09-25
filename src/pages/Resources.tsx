@@ -1,10 +1,11 @@
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { Download, FileText, Video, MessageSquare, Lock, X, BookOpen, GraduationCap, Lightbulb, Wrench } from "lucide-react";
+import DocViewer, { DocViewerRenderers } from "@cyntler/react-doc-viewer";
+import { Download, FileText, Video, MessageSquare, Lock, X, BookOpen, GraduationCap, Lightbulb, Wrench, Eye, Loader2, AlertCircle, RefreshCw, Box } from "lucide-react";
 import { useUserStore } from "@/store/useUserStore";
 import { supabase } from "@/lib/supabase";
-import { showToast, safeConfirm } from "@/lib/utils";
-
+import { showToast, safeConfirm } from "@/lib/utils";// --- 基础数据结构 ---
 interface ResourceItem {
   id: string | number;
   title: string;
@@ -12,6 +13,7 @@ interface ResourceItem {
   file_url: string;
   min_level: string;
   category?: string;
+  image_url?: string; // 新增预览图字段
 }
 
 interface Category {
@@ -32,7 +34,24 @@ const CATEGORY_KEY_MAP: Record<string, string[]> = {
 export default function Resources() {
   const { user, updateStats } = useUserStore();
   const [showQRModal, setShowQRModal] = useState(false);
+  const [previewItem, setPreviewItem] = useState<ResourceItem | null>(null);
+  const [isPreviewLoading, setIsPreviewLoading] = useState(false);
+  const [previewError, setPreviewError] = useState(false);
+  const [previewEngine, setPreviewEngine] = useState<'microsoft' | 'xdoc'>('microsoft');
+  const [isSlowLoading, setIsSlowLoading] = useState(false);
+  const [downloadProgress, setDownloadProgress] = useState<{ id: string | number, progress: number } | null>(null);
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
+
+  useEffect(() => {
+    let timer: NodeJS.Timeout;
+    if (isPreviewLoading) {
+      setIsSlowLoading(false);
+      timer = setTimeout(() => {
+        setIsSlowLoading(true);
+      }, 5000); // 5秒后如果还在加载，显示切换提示
+    }
+    return () => clearTimeout(timer);
+  }, [isPreviewLoading, previewEngine]);
   const [categories, setCategories] = useState<Category[]>([
     {
       key: "primary",
@@ -100,17 +119,119 @@ export default function Resources() {
     }
   };
 
-  const handleDownload = (item: ResourceItem) => {
-    const userLevel = user?.level || 0;
-    const requiredLevel = parseInt(item.min_level.replace('LV', '')) || 1;
+  const handleDownload = async (item: ResourceItem) => {
+    if (!user) {
+      showToast("info", "请先登录后再下载课件资源。");
+      return;
+    }
 
-    if (userLevel < requiredLevel) {
-      showToast("info", `抱歉，该资源需要等级达到 ${item.min_level} 才能下载。您的当前等级为 LV${userLevel}`);
+    if (downloadProgress?.id === item.id) {
+      showToast("info", "该文件正在下载中，请稍候...");
       return;
     }
 
     updateStats('download');
-    window.open(item.file_url, '_blank');
+    
+    try {
+      showToast("info", "正在准备下载...");
+      setDownloadProgress({ id: item.id, progress: 0 });
+
+      // 使用 XMLHttpRequest 获取文件，以便能够监听下载进度
+      const xhr = new XMLHttpRequest();
+      xhr.open('GET', item.file_url, true);
+      xhr.responseType = 'blob';
+
+      xhr.onprogress = (event) => {
+        if (event.lengthComputable) {
+          const percentComplete = Math.round((event.loaded / event.total) * 100);
+          setDownloadProgress({ id: item.id, progress: percentComplete });
+        } else {
+          // 如果服务器没返回 Content-Length，做一个假进度条动画
+          setDownloadProgress(prev => ({ 
+            id: item.id, 
+            progress: Math.min((prev?.progress || 0) + 10, 90) 
+          }));
+        }
+      };
+
+      xhr.onload = () => {
+        if (xhr.status === 200) {
+          setDownloadProgress({ id: item.id, progress: 100 });
+          const blob = xhr.response;
+          const url = window.URL.createObjectURL(blob);
+          
+          const link = document.createElement('a');
+          link.href = url;
+          // 提取文件名：优先使用我们数据库中记录的文件中文标题 + 文件类型后缀
+          const fileName = `${item.title}.${item.file_type.toLowerCase()}`;
+          link.setAttribute('download', fileName);
+          document.body.appendChild(link);
+          link.click();
+          
+          // 清理
+          link.parentNode?.removeChild(link);
+          window.URL.revokeObjectURL(url);
+          
+          setTimeout(() => {
+            setDownloadProgress(null);
+            showToast("success", "下载完成！");
+          }, 500);
+        } else {
+          throw new Error('网络请求失败');
+        }
+      };
+
+      xhr.onerror = () => {
+        throw new Error('网络请求失败');
+      };
+
+      xhr.send();
+    } catch (error) {
+      console.error('Download failed:', error);
+      setDownloadProgress(null);
+      // 如果 fetch 失败（比如跨域问题），回退到 window.open 但尝试加上 download 属性的假链接
+      const link = document.createElement('a');
+      link.href = item.file_url;
+      link.setAttribute('download', '');
+      link.target = '_blank';
+      document.body.appendChild(link);
+      link.click();
+      link.parentNode?.removeChild(link);
+    }
+  };
+
+  const handlePreview = (item: ResourceItem) => {
+    if (!user) {
+      showToast("info", "请先登录后再预览课件资源。");
+      return;
+    }
+
+    const fileType = item.file_type.toLowerCase();
+    if (
+      fileType.includes('ppt') || fileType.includes('doc') || fileType.includes('xls') ||
+      fileType.includes('pdf') || fileType.includes('mp4') || fileType.includes('png') || fileType.includes('jpg')
+    ) {
+      setIsPreviewLoading(true);
+      setPreviewError(false);
+      setPreviewEngine('microsoft');
+      setPreviewItem(item);
+    } else {
+      showToast("info", `当前文件格式 (${item.file_type}) 暂不支持在线预览，请直接下载查看。`);
+    }
+  };
+
+  const getPreviewUrl = (item: ResourceItem, engine: 'microsoft' | 'xdoc') => {
+    const fileUrl = item.file_url;
+    const fileType = item.file_type.toLowerCase();
+    if (fileType.includes('ppt') || fileType.includes('doc') || fileType.includes('xls')) {
+      if (engine === 'microsoft') {
+        return `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(fileUrl)}&wdOrigin=BROWSELINK`;
+      } else {
+        // 使用国内稳定的 XDOC 文档预览服务作为备用方案，无需科学上网
+        return `https://view.xdocin.com/view?src=${encodeURIComponent(fileUrl)}`;
+      }
+    }
+    return fileUrl;
   };
 
   const visibleCategories = activeCategory
@@ -195,9 +316,9 @@ export default function Resources() {
                 </div>
                 
                 {category.items.length > 0 ? (
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                     {category.items.map((item) => {
-                      const isLocked = (user?.level || 0) < (parseInt(item.min_level.replace('LV', '')) || 1);
+                      const isLocked = !user;
                       return (
                         <motion.div
                           key={item.id}
@@ -205,35 +326,120 @@ export default function Resources() {
                           whileInView={{ opacity: 1, y: 0 }}
                           viewport={{ once: true, margin: "-40px" }}
                           transition={{ duration: 0.6 }}
-                          whileHover={{ scale: 1.02 }}
-                          className="p-6 rounded-3xl bg-[#f5f5f7] border border-transparent hover:border-[#0071e3]/10 transition-all group relative overflow-hidden card-hover shimmer-card tilt-card"
+                          className="group relative bg-white rounded-3xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 border border-gray-100 flex flex-col cursor-pointer"
+                          onClick={() => {
+                            if (!isLocked) {
+                              handlePreview(item);
+                            } else {
+                              showToast("info", "请先登录后再预览。");
+                            }
+                          }}
                         >
-                          <div className="absolute -right-8 -top-8 w-24 h-24 rounded-full bg-gradient-to-br from-[#0071e3]/10 to-[#28cd41]/10 blur-2xl group-hover:opacity-80 transition-opacity opacity-0"></div>
-                          <div className="relative z-10">
-                            <div className="flex items-center gap-4 mb-6">
-                              <div className="w-12 h-12 rounded-2xl bg-white flex items-center justify-center shadow-sm glow-ring">
-                                {item.file_type === 'MP4' ? <Video className="w-6 h-6 text-[#28cd41]" /> : <FileText className="w-6 h-6 text-[#0071e3]" />}
-                              </div>
-                              <div className="flex-grow overflow-hidden">
-                                <h4 className="font-bold truncate text-[#1d1d1f]" title={item.title}>{item.title}</h4>
-                                <div className="flex items-center gap-2 mt-1">
-                                  <span className="text-xs text-[#86868b] font-bold uppercase">{item.file_type}</span>
-                                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-white text-[#0071e3] font-bold border border-[#0071e3]/10">{item.min_level}</span>
-                                </div>
-                              </div>
+                          {/* 大图预览区域 (模拟瀑布流卡片) */}
+                          <div className="aspect-[4/3] w-full overflow-hidden bg-[#f5f5f7] relative">
+                            {/* 使用一个非常轻量级的 SVG 作为默认背景，完全不依赖任何外部图片链接，保证 100% 成功加载 */}
+                            <div className="absolute inset-0 bg-gradient-to-br from-[#0071e3]/10 via-[#f5f5f7] to-[#28cd41]/10 flex items-center justify-center">
+                              {item.file_type === 'MP4' ? (
+                                <Video className="w-16 h-16 text-[#1d1d1f]/10" />
+                              ) : item.file_type === 'STL' ? (
+                                <Box className="w-16 h-16 text-[#1d1d1f]/10" />
+                              ) : (
+                                <FileText className="w-16 h-16 text-[#1d1d1f]/10" />
+                              )}
                             </div>
                             
-                            <button 
-                              onClick={() => handleDownload(item)}
-                              className={`w-full py-3 rounded-xl text-sm font-semibold shadow-sm transition-all flex items-center justify-center gap-2 ripple-target ${
-                                isLocked 
-                                  ? "bg-white text-[#86868b] cursor-not-allowed" 
-                                  : "bg-white text-[#1d1d1f] hover:bg-[#0071e3] hover:text-white hover:border-[#0071e3] border border-transparent"
-                              }`}
-                            >
-                              {isLocked ? <Lock className="w-4 h-4" /> : <Download className="w-4 h-4" />}
-                              {isLocked ? `需 ${item.min_level}` : "立即下载"}
-                            </button>
+                            {/* 只有在有真实的自定义封面时才渲染 img 标签 */}
+                            {item.image_url ? (
+                              <img 
+                                src={item.image_url} 
+                                alt={item.title}
+                                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 relative z-10"
+                                onError={(e) => {
+                                  (e.target as HTMLImageElement).style.display = 'none';
+                                }}
+                              />
+                            ) : (
+                              // 使用 XDOC 的预览服务，强制传入页码 p=1 来获取第一页作为缩略图
+                              <img 
+                                src={`https://view.xdocin.com/view?src=${encodeURIComponent(item.file_url)}&p=1&pdf=true`}
+                                alt={item.title}
+                                className="w-full h-full object-cover object-top group-hover:scale-105 transition-transform duration-500 relative z-10"
+                                onError={(e) => {
+                                  // 如果由于跨域或文件不支持导致无法截取缩略图，静默隐藏，露出底部的渐变背景兜底
+                                  (e.target as HTMLImageElement).style.display = 'none';
+                                }}
+                              />
+                            )}
+                            
+                            {/* 悬浮遮罩 - 格式标签 */}
+                            <div className="absolute top-4 right-4 z-10">
+                              <div className="px-3 py-1.5 rounded-full text-xs font-bold flex items-center gap-1.5 backdrop-blur-md bg-white/90 shadow-sm text-gray-800">
+                                {item.file_type === 'MP4' ? <Video className="w-3.5 h-3.5" /> : <FileText className="w-3.5 h-3.5" />}
+                                {item.file_type.toUpperCase()}
+                              </div>
+                            </div>
+
+                            {/* 悬浮状态 - 预览按钮 */}
+                            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center backdrop-blur-[2px]">
+                              <button 
+                                className="btn-primary rounded-full px-6 py-3 flex items-center gap-2 transform translate-y-4 group-hover:translate-y-0 transition-all duration-300 shadow-xl"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  if (!isLocked) {
+                                    handlePreview(item);
+                                  } else {
+                                    showToast("info", "请先登录后再预览。");
+                                  }
+                                }}
+                              >
+                                {isLocked ? <Lock className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                                {isLocked ? "登录预览" : "立即预览"}
+                              </button>
+                            </div>
+                          </div>
+
+                          {/* 极简信息区域 */}
+                          <div className="p-5 flex flex-col flex-grow">
+                            <h3 className="text-[16px] font-bold text-[#111] leading-snug mb-3 line-clamp-2 group-hover:text-[#0071e3] transition-colors" title={item.title}>
+                              {item.title}
+                            </h3>
+                            
+                            <div className="mt-auto flex items-center justify-between text-xs text-gray-500">
+                              <div className="flex items-center gap-2">
+                                <span className="px-2 py-1 rounded bg-gray-100 font-medium">
+                                  Lv {item.min_level}
+                                </span>
+                              </div>
+                              
+                              {/* 下载按钮 */}
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleDownload(item);
+                                }}
+                                disabled={isLocked || downloadProgress?.id === item.id}
+                                className={`relative overflow-hidden w-9 h-9 rounded-full flex items-center justify-center transition-all ${
+                                  isLocked 
+                                    ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                                    : downloadProgress?.id === item.id
+                                      ? 'bg-blue-50 text-blue-600 cursor-wait'
+                                      : 'bg-gray-50 hover:bg-black hover:text-white text-gray-600 shadow-sm'
+                                }`}
+                                title={isLocked ? '登录即可下载' : '直接下载'}
+                              >
+                                {downloadProgress?.id === item.id ? (
+                                  <div className="absolute inset-0 flex flex-col items-center justify-center bg-blue-50">
+                                    <div 
+                                      className="absolute bottom-0 left-0 right-0 bg-blue-200 transition-all duration-300"
+                                      style={{ height: `${downloadProgress.progress}%` }}
+                                    />
+                                    <span className="relative z-10 text-[10px] font-bold text-blue-700">{downloadProgress.progress}%</span>
+                                  </div>
+                                ) : (
+                                  isLocked ? <Lock className="w-4 h-4" /> : <Download className="w-4 h-4" />
+                                )}
+                              </button>
+                            </div>
                           </div>
                         </motion.div>
                       );
@@ -290,70 +496,309 @@ export default function Resources() {
       </section>
 
       {/* QR Modal */}
-      <AnimatePresence>
-        {showQRModal && (
-          <div className="fixed inset-0 z-[200] flex items-center justify-center p-6">
-            <motion.div 
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setShowQRModal(false)}
-              className="absolute inset-0 bg-black/40 backdrop-blur-sm"
-            />
-            <motion.div 
-              initial={{ opacity: 0, scale: 0.9, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.9, y: 20 }}
-              className="relative w-full max-w-sm bg-white rounded-[3rem] shadow-2xl p-12 text-center shimmer-border group"
-            >
-              <button 
+      {typeof document !== 'undefined' && createPortal(
+        <AnimatePresence>
+          {showQRModal && (
+            <div className="fixed inset-0 z-[200] flex items-center justify-center p-6">
+              <motion.div 
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
                 onClick={() => setShowQRModal(false)}
-                className="absolute top-6 right-6 p-2 rounded-full bg-[#f5f5f7] hover:bg-[#d2d2d7] transition-all"
+                className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+              />
+              <motion.div 
+                initial={{ opacity: 0, scale: 0.9, y: 20 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.9, y: 20 }}
+                className="relative w-full max-w-sm bg-white rounded-[3rem] shadow-2xl p-12 text-center shimmer-border group"
               >
-                <X className="w-5 h-5 text-[#1d1d1f]" />
-              </button>
-              
-              <h3 className="text-2xl font-bold mb-4">加入教师社区</h3>
-              <p className="text-[#86868b] mb-8">请使用微信扫码，备注“睿造打印-科创教育”申请入群。</p>
-              
-              <div className="aspect-square w-full rounded-[2rem] bg-[#f5f5f7] flex items-center justify-center mb-8 border border-[#d2d2d7]/30 shadow-inner overflow-hidden p-4 shimmer-border">
-                <img 
-                  src="https://core-normal.trae.ai/api/ide/v1/text_to_image?prompt=realistic+manga+illustration+QR+code+mockup+simple+clean+design+soft+blue+accent+clean+line+art+cell+shading+simple+plain+white+background+no+brand+logo+no+watermark+authentic+anime+style&image_size=square" 
-                  alt="QR Code" 
-                  className="w-full h-full object-contain"
-                />
+                <button 
+                  onClick={() => setShowQRModal(false)}
+                  className="absolute top-6 right-6 p-2 rounded-full bg-[#f5f5f7] hover:bg-[#d2d2d7] transition-all"
+                >
+                  <X className="w-5 h-5 text-[#1d1d1f]" />
+                </button>
+                
+                <h3 className="text-2xl font-bold mb-4">加入教师社区</h3>
+                <p className="text-[#86868b] mb-8">请使用微信扫码，备注“睿造打印-科创教育”申请入群。</p>
+                
+                <div className="aspect-square w-full rounded-[2rem] bg-[#f5f5f7] flex items-center justify-center mb-8 border border-[#d2d2d7]/30 shadow-inner overflow-hidden p-4 shimmer-border">
+                  <img 
+                    src="https://core-normal.trae.ai/api/ide/v1/text_to_image?prompt=realistic+manga+illustration+QR+code+mockup+simple+clean+design+soft+blue+accent+clean+line+art+cell+shading+simple+plain+white+background+no+brand+logo+no+watermark+authentic+anime+style&image_size=square" 
+                    alt="QR Code" 
+                    className="w-full h-full object-contain"
+                  />
+                </div>
+                
+                <button 
+                  onClick={() => setShowQRModal(false)}
+                  className="w-full btn-secondary py-4"
+                >
+                  已扫码，返回
+                </button>
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>,
+        document.body
+      )}
+
+      {/* Preview Modal */}
+      {typeof document !== 'undefined' && createPortal(
+        <AnimatePresence>
+          {previewItem && (
+            <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 md:p-6 bg-black/60 backdrop-blur-sm">
+              <motion.div 
+                initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.95, y: 20 }}
+                className="bg-white rounded-2xl md:rounded-[2rem] w-full max-w-6xl max-h-[90vh] flex flex-col overflow-hidden shadow-2xl relative z-10"
+              >
+              {/* Header */}
+              <div className="flex items-center justify-between p-4 md:p-6 border-b border-gray-100 shrink-0">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-[#0071e3]/10 flex items-center justify-center text-[#0071e3]">
+                    {previewItem.file_type.toLowerCase().includes('mp4') ? <Video className="w-5 h-5" /> : <FileText className="w-5 h-5" />}
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-lg text-[#1d1d1f] line-clamp-1">{previewItem.title}</h3>
+                    <p className="text-xs text-[#86868b] uppercase font-bold">{previewItem.file_type}</p>
+                  </div>
+                </div>
+                
+                <div className="flex items-center gap-2">
+                  {/* 常驻控制按钮：切换引擎 & 下载 */}
+                  {(previewItem.file_type.toLowerCase().includes('ppt') || previewItem.file_type.toLowerCase().includes('doc') || previewItem.file_type.toLowerCase().includes('xls')) && (
+                    <div className="hidden sm:flex items-center bg-[#f5f5f7] p-1 rounded-full mr-2 border border-[#d2d2d7]/50">
+                      <button 
+                        onClick={() => {
+                          if (previewEngine === 'microsoft') return;
+                          setIsPreviewLoading(true);
+                          setPreviewError(false);
+                          setPreviewEngine('microsoft');
+                        }}
+                        className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all flex items-center gap-1 ${previewEngine === 'microsoft' ? 'bg-white text-[#0071e3] shadow-sm' : 'text-[#86868b] hover:text-[#1d1d1f]'}`}
+                      >
+                        Rayzo Pro
+                      </button>
+                      <button 
+                        onClick={() => {
+                          if (previewEngine === 'xdoc') return;
+                          setIsPreviewLoading(true);
+                          setPreviewError(false);
+                          setPreviewEngine('xdoc');
+                        }}
+                        className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all flex items-center gap-1 ${previewEngine === 'xdoc' ? 'bg-white text-[#0071e3] shadow-sm' : 'text-[#86868b] hover:text-[#1d1d1f]'}`}
+                      >
+                        Rayzo Ultra
+                      </button>
+                    </div>
+                  )}
+                  <button 
+                    onClick={() => handleDownload(previewItem)}
+                    disabled={downloadProgress?.id === previewItem.id}
+                    className={`hidden sm:flex items-center gap-2 px-4 py-2 rounded-full text-sm font-bold transition-all mr-2 relative overflow-hidden ${
+                      downloadProgress?.id === previewItem.id
+                        ? "bg-[#f5f5f7] text-[#1d1d1f] border border-[#d2d2d7]/50 cursor-wait"
+                        : "bg-[#0071e3]/10 hover:bg-[#0071e3]/20 text-[#0071e3]"
+                    }`}
+                  >
+                    {downloadProgress?.id === previewItem.id && (
+                      <div 
+                        className="absolute left-0 top-0 bottom-0 bg-[#0071e3]/20 transition-all duration-300"
+                        style={{ width: `${downloadProgress.progress}%` }}
+                      />
+                    )}
+                    <div className="relative z-10 flex items-center gap-2">
+                      {downloadProgress?.id === previewItem.id ? (
+                        <Loader2 className="w-4 h-4 animate-spin text-[#0071e3]" />
+                      ) : (
+                        <Download className="w-4 h-4" />
+                      )}
+                      {downloadProgress?.id === previewItem.id ? `${downloadProgress.progress}%` : "下载原件"}
+                    </div>
+                  </button>
+
+                  <button 
+                    onClick={() => setPreviewItem(null)}
+                    className="p-2 rounded-full hover:bg-gray-100 text-gray-500 transition-colors"
+                  >
+                    <X className="w-6 h-6" />
+                  </button>
+                </div>
               </div>
               
-              <button 
-                onClick={() => setShowQRModal(false)}
-                className="w-full btn-secondary py-4"
-              >
-                已扫码，返回
-              </button>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
+              {/* Content */}
+              <div className="flex-grow bg-[#f5f5f7] relative overflow-hidden flex items-center justify-center min-h-[50vh] md:min-h-[75vh]">
+                
+                {/* Floating Watermark */}
+                <div className="absolute top-4 right-4 md:top-6 md:right-6 z-30 pointer-events-none select-none opacity-80 bg-white/70 backdrop-blur-md px-5 py-2.5 rounded-full border border-[#0071e3]/20 shadow-sm flex items-center gap-2 transition-all">
+                  <span className="text-[#0071e3] font-black text-sm md:text-base tracking-wide">Rayzo</span>
+                  <span className="text-[#0071e3]/30 text-sm">|</span>
+                  <span className="text-[#0071e3] font-bold text-[10px] md:text-xs tracking-widest">让科创教育触手可及</span>
+                </div>
+
+                 {isPreviewLoading && !previewError && (
+                   <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-[#f5f5f7]">
+                     <Loader2 className="w-8 h-8 text-[#0071e3] animate-spin mb-4" />
+                     <p className="text-[#86868b] text-sm font-medium">
+                       {previewItem.file_type.toLowerCase().includes('mp4') || previewItem.file_type.toLowerCase().includes('png') || previewItem.file_type.toLowerCase().includes('jpg') 
+                         ? "正在加载媒体文件..." 
+                         : previewItem.file_type.toLowerCase().includes('ppt') 
+                           ? `正在通过 ${previewEngine === 'microsoft' ? 'Rayzo Pro' : 'Rayzo Ultra'} 核心解析文档...`
+                           : "正在启动本地文档预览插件..."}
+                     </p>
+                     <p className="text-[#86868b]/60 text-xs mt-2">首次加载可能需要 5-10 秒</p>
+
+                     {isSlowLoading && (previewItem.file_type.toLowerCase().includes('ppt') || previewItem.file_type.toLowerCase().includes('doc') || previewItem.file_type.toLowerCase().includes('xls')) && (
+                       <motion.div 
+                         initial={{ opacity: 0, y: 10 }}
+                         animate={{ opacity: 1, y: 0 }}
+                         className="mt-8 flex flex-col items-center animate-pulse"
+                       >
+                         <p className="text-[#0071e3] text-sm md:text-base font-bold mb-3 flex items-center gap-1">
+                           似乎加载时间较长，您可以尝试切换引擎
+                         </p>
+                         <button 
+                           onClick={() => {
+                             setIsPreviewLoading(true);
+                             setPreviewError(false);
+                             setPreviewEngine(prev => prev === 'microsoft' ? 'xdoc' : 'microsoft');
+                           }}
+                           className="flex items-center gap-2 px-5 py-2.5 rounded-full bg-[#0071e3]/10 hover:bg-[#0071e3]/20 text-[#0071e3] font-bold transition-colors shadow-sm"
+                         >
+                           <RefreshCw className="w-4 h-4" />
+                           切换至 {previewEngine === 'microsoft' ? 'Rayzo Ultra' : 'Rayzo Pro'}
+                         </button>
+                       </motion.div>
+                     )}
+                   </div>
+                 )}
+
+                 {previewError && (
+                   <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-[#f5f5f7] p-6 text-center">
+                     <div className="w-16 h-16 rounded-full bg-red-50 flex items-center justify-center mb-4">
+                       <AlertCircle className="w-8 h-8 text-red-500" />
+                     </div>
+                     <h4 className="text-lg font-bold text-[#1d1d1f] mb-2">在线预览服务暂时不可用</h4>
+                     <p className="text-[#86868b] text-sm max-w-md mb-6">
+                       由于第三方预览服务的网络波动或文件过大，导致文档解析超时或失败。
+                     </p>
+                     <div className="flex flex-col sm:flex-row gap-3">
+                       {(previewItem.file_type.toLowerCase().includes('ppt') || previewItem.file_type.toLowerCase().includes('doc') || previewItem.file_type.toLowerCase().includes('xls')) && (
+                         <button 
+                           onClick={() => {
+                             setIsPreviewLoading(true);
+                             setPreviewError(false);
+                             setPreviewEngine(prev => prev === 'microsoft' ? 'xdoc' : 'microsoft');
+                           }}
+                           className="btn-secondary flex items-center justify-center gap-2 border border-[#0071e3]/20 text-[#0071e3] hover:bg-[#0071e3]/10"
+                         >
+                           <RefreshCw className="w-4 h-4" />
+                           尝试切换引擎 ({previewEngine === 'microsoft' ? 'Rayzo Ultra' : 'Rayzo Pro'})
+                         </button>
+                       )}
+                       <button 
+                         onClick={() => {
+                           setPreviewItem(null);
+                           handleDownload(previewItem);
+                         }}
+                         disabled={downloadProgress?.id === previewItem.id}
+                         className={`btn-primary flex items-center justify-center gap-2 relative overflow-hidden ${downloadProgress?.id === previewItem.id ? 'cursor-wait' : ''}`}
+                       >
+                         {downloadProgress?.id === previewItem.id && (
+                           <div 
+                             className="absolute left-0 top-0 bottom-0 bg-white/20 transition-all duration-300"
+                             style={{ width: `${downloadProgress.progress}%` }}
+                           />
+                         )}
+                         <div className="relative z-10 flex items-center gap-2">
+                           {downloadProgress?.id === previewItem.id ? (
+                             <Loader2 className="w-4 h-4 animate-spin text-white" />
+                           ) : (
+                             <Download className="w-4 h-4" />
+                           )}
+                           {downloadProgress?.id === previewItem.id ? `正在下载 ${downloadProgress.progress}%` : "直接下载到本地查看"}
+                         </div>
+                       </button>
+                     </div>
+                   </div>
+                 )}
+
+                 {previewItem.file_type.toLowerCase().includes('mp4') ? (
+                   <video 
+                     src={previewItem.file_url} 
+                     controls 
+                     autoPlay 
+                     className={`w-full h-full object-contain transition-opacity duration-300 ${isPreviewLoading ? 'opacity-0' : 'opacity-100'}`}
+                     onLoadedData={() => setIsPreviewLoading(false)}
+                     onError={() => {
+                       setIsPreviewLoading(false);
+                       setPreviewError(true);
+                     }}
+                   />
+                 ) : previewItem.file_type.toLowerCase().includes('png') || previewItem.file_type.toLowerCase().includes('jpg') ? (
+                   <img 
+                     src={previewItem.file_url} 
+                     alt={previewItem.title} 
+                     className={`max-w-full max-h-full object-contain p-4 transition-opacity duration-300 ${isPreviewLoading ? 'opacity-0' : 'opacity-100'}`}
+                     onLoad={() => setIsPreviewLoading(false)}
+                     onError={() => {
+                       setIsPreviewLoading(false);
+                       setPreviewError(true);
+                     }}
+                   />
+                 ) : previewItem.file_type.toLowerCase().includes('ppt') ? (
+                   <div className={`absolute inset-0 w-full h-full transition-opacity duration-300 ${isPreviewLoading ? 'opacity-0' : 'opacity-100'}`}>
+                     <iframe 
+                       src={getPreviewUrl(previewItem, previewEngine)} 
+                       className="w-full h-full border-0"
+                       title="Document Preview"
+                       onLoad={() => {
+                         // 给 iframe 额外的缓冲时间，因为它 load 触发时内部可能还没渲染完
+                         setTimeout(() => setIsPreviewLoading(false), 800);
+                       }}
+                       onError={() => {
+                         setIsPreviewLoading(false);
+                         setPreviewError(true);
+                       }}
+                     />
+                   </div>
+                 ) : (
+                   <div className={`absolute inset-0 w-full h-full flex flex-col transition-opacity duration-300 ${isPreviewLoading ? 'opacity-0' : 'opacity-100'}`}>
+                     <DocViewer 
+                       documents={[{ uri: previewItem.file_url, fileType: previewItem.file_type.toLowerCase() }]} 
+                       pluginRenderers={DocViewerRenderers}
+                       prefetchMethod="GET"
+                       style={{ width: '100%', height: '100%', backgroundColor: '#f5f5f7' }}
+                       config={{
+                         header: {
+                           disableHeader: true,
+                           disableFileName: true,
+                           retainURLParams: false
+                         }
+                       }}
+                     />
+                     {/* DocViewer doesn't have an explicit onLoad callback in this version, so we simulate it for UI smoothness */}
+                     {setTimeout(() => { if (isPreviewLoading) setIsPreviewLoading(false); }, 1500) && null}
+                   </div>
+                 )}
+               </div>
+              </motion.div>
+              <motion.div 
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                onClick={() => setPreviewItem(null)}
+                className="absolute inset-0 z-0"
+              />
+            </div>
+          )}
+        </AnimatePresence>,
+        document.body
+      )}
     </div>
   );
 }
 
-function ArrowRight(props: any) {
-  return (
-    <svg
-      {...props}
-      xmlns="http://www.w3.org/2000/svg"
-      width="24"
-      height="24"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d="M5 12h14" />
-      <path d="m12 5 7 7-7 7" />
-    </svg>
-  );
-}

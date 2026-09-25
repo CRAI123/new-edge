@@ -3,7 +3,7 @@ import { BrowserRouter as Router, Routes, Route, useLocation } from "react-route
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import LineAnimationBackground from "@/components/LineAnimationBackground";
-import CookieConsent from "@/components/CookieConsent";
+import CookieBanner from "@/components/CookieBanner";
 import ToastViewport from "@/components/ToastViewport";
 import Home from "@/pages/Home";
 import { supabase } from "@/lib/supabase";
@@ -244,7 +244,7 @@ export default function App() {
             </Suspense>
           </main>
           <Footer />
-          <CookieConsent />
+          <CookieBanner />
           <ToastViewport />
         </div>
       </div>

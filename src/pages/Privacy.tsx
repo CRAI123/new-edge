@@ -142,7 +142,7 @@ export default function Privacy() {
       content: (
         <div className="space-y-2 text-[#86868b]">
           <p>运营主体：睿造打印工坊（Rayzo Print Studio · 学生创客团队）</p>
-          <p>所在地：湖南 · 长沙</p>
+          <p>通讯地址：湖南 · 长沙</p>
           <p>管理员 / 数据保护联系人邮箱：<span className="text-[#0071e3] font-semibold">2623681461@qq.com</span></p>
           <p>沟通方式：邮件为主要渠道，工作日 1~3 日内回复</p>
           <p>我们将在收到您请求后的 <b className="text-[#1d1d1f]">15 个工作日内</b>予以答复。</p>

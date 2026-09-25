@@ -96,7 +96,7 @@ export default function Contact() {
               
               <div className="flex items-center gap-2 text-sm text-[#86868b] mt-8 p-4 bg-[#f5f5f7] rounded-2xl border border-[#eaeaea] card-hover">
                 <Clock className="w-5 h-5 text-[#0071e3]" />
-                <span>服务承诺：我们会在 <strong className="text-[#1d1d1f]">24 小时</strong> 内回复您的留言或邮件。</span>
+                <span>服务承诺：我们会在 <strong className="text-[#1d1d1f]">1~3 个工作日</strong> 内回复您的留言或邮件。</span>
               </div>
 
               {/* Map Placeholder */}

@@ -145,7 +145,7 @@ export default function Terms() {
         <div className="space-y-2 text-[#86868b]">
           <p>条款接受过程中如有任何疑问、建议投诉举报：</p>
           <p>管理员邮箱：<span className="text-[#0071e3] font-semibold">2623681461@qq.com</span></p>
-          <p>通讯地址：湖南省长沙市高新区科技园 · 睿造打印工坊法务部收</p>
+          <p>通讯地址：湖南 · 长沙</p>
           <p>受理工作日 09:00 - 18:00（周一至周五，法定节假日除外）</p>
         </div>
       ),

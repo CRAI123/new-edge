@@ -244,7 +244,7 @@ export default function Sales() {
                       </div>
                       <p className="text-xs text-[#86868b] uppercase tracking-wider">工作室地址</p>
                     </div>
-                    <p className="text-xl font-bold text-[#1d1d1f]">湖南省长沙市</p>
+                    <p className="text-xl font-bold text-[#1d1d1f]">湖南 · 长沙</p>
                     <p className="text-xs text-[#86868b] mt-2">学生创客团队，线下交流仅接受提前邮件预约</p>
                   </div>
                 </div>
