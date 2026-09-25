@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { Suspense, lazy, useEffect } from "react";
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
@@ -6,27 +6,41 @@ import LineAnimationBackground from "@/components/LineAnimationBackground";
 import CookieConsent from "@/components/CookieConsent";
 import ToastViewport from "@/components/ToastViewport";
 import Home from "@/pages/Home";
-import Products from "@/pages/Products";
-import Team from "@/pages/Team";
-import Contact from "@/pages/Contact";
-import Resources from "@/pages/Resources";
-import Advice from "@/pages/Advice";
-import Printers from "@/pages/Printers";
-import Login from "@/pages/Login";
-import Register from "@/pages/Register";
-import Privacy from "@/pages/Privacy";
-import Terms from "@/pages/Terms";
-import Sales from "@/pages/Sales";
-import OrderGenerator from "@/pages/OrderGenerator";
-import AdminDashboard from "@/pages/Admin/Dashboard";
-import ResourceManager from "@/pages/Admin/ResourceManager";
-import UserManager from "@/pages/Admin/UserManager";
-import PrinterManager from "@/pages/Admin/PrinterManager";
-import AdminOrderManager from "@/pages/Admin/OrderManager";
-import LogisticsTracker from "@/pages/LogisticsTracker";
-import OrderTrack from "@/pages/OrderTrack";
 import { supabase } from "@/lib/supabase";
 import { useUserStore } from "@/store/useUserStore";
+
+// 路由级代码分割：非首页 / 管理后台页面全部延迟加载
+const Products = lazy(() => import("@/pages/Products"));
+const Team = lazy(() => import("@/pages/Team"));
+const Contact = lazy(() => import("@/pages/Contact"));
+const Resources = lazy(() => import("@/pages/Resources"));
+const Advice = lazy(() => import("@/pages/Advice"));
+const Printers = lazy(() => import("@/pages/Printers"));
+const Login = lazy(() => import("@/pages/Login"));
+const Register = lazy(() => import("@/pages/Register"));
+const Privacy = lazy(() => import("@/pages/Privacy"));
+const Terms = lazy(() => import("@/pages/Terms"));
+const Sales = lazy(() => import("@/pages/Sales"));
+const OrderGenerator = lazy(() => import("@/pages/OrderGenerator"));
+const AdminDashboard = lazy(() => import("@/pages/Admin/Dashboard"));
+const ResourceManager = lazy(() => import("@/pages/Admin/ResourceManager"));
+const UserManager = lazy(() => import("@/pages/Admin/UserManager"));
+const PrinterManager = lazy(() => import("@/pages/Admin/PrinterManager"));
+const AdminOrderManager = lazy(() => import("@/pages/Admin/OrderManager"));
+const LogisticsTracker = lazy(() => import("@/pages/LogisticsTracker"));
+const OrderTrack = lazy(() => import("@/pages/OrderTrack"));
+
+// 懒加载占位 UI — 保持与现有视觉一致
+function PageSkeleton() {
+  return (
+    <div className="min-h-[60vh] flex items-center justify-center bg-[#f5f5f7]">
+      <div className="flex flex-col items-center gap-4">
+        <div className="w-10 h-10 md:w-12 md:h-12 rounded-full border-3 border-[#0071e3]/20 border-t-[#0071e3] animate-spin"></div>
+        <div className="text-sm md:text-base text-[#86868b]">加载中…</div>
+      </div>
+    </div>
+  );
+}
 
 export default function App() {
   const { setUser, setAdmin } = useUserStore();
@@ -177,30 +191,32 @@ export default function App() {
         <div className="relative z-10 flex flex-col min-h-screen">
           <Navbar />
           <main className="flex-grow">
-            <Routes>
-              <Route path="/" element={<Home />} />
-              <Route path="/products" element={<Products />} />
-              <Route path="/resources" element={<Resources />} />
-              <Route path="/advice" element={<Advice />} />
-              <Route path="/printers" element={<Printers />} />
-              <Route path="/team" element={<Team />} />
-              <Route path="/contact" element={<Contact />} />
-              <Route path="/login" element={<Login />} />
-              <Route path="/register" element={<Register />} />
-              <Route path="/privacy" element={<Privacy />} />
-              <Route path="/terms" element={<Terms />} />
-              <Route path="/sales" element={<Sales />} />
-              <Route path="/order-generator" element={<OrderGenerator />} />
-              <Route path="/logistics" element={<LogisticsTracker />} />
-              <Route path="/order/:orderNo" element={<OrderTrack />} />
-              
-              {/* Admin Routes */}
-              <Route path="/admin" element={<AdminDashboard />} />
-              <Route path="/admin/resources" element={<ResourceManager />} />
-              <Route path="/admin/users" element={<UserManager />} />
-              <Route path="/admin/printers" element={<PrinterManager />} />
-              <Route path="/admin/orders" element={<AdminOrderManager />} />
-            </Routes>
+            <Suspense fallback={<PageSkeleton />}>
+              <Routes>
+                <Route path="/" element={<Home />} />
+                <Route path="/products" element={<Products />} />
+                <Route path="/resources" element={<Resources />} />
+                <Route path="/advice" element={<Advice />} />
+                <Route path="/printers" element={<Printers />} />
+                <Route path="/team" element={<Team />} />
+                <Route path="/contact" element={<Contact />} />
+                <Route path="/login" element={<Login />} />
+                <Route path="/register" element={<Register />} />
+                <Route path="/privacy" element={<Privacy />} />
+                <Route path="/terms" element={<Terms />} />
+                <Route path="/sales" element={<Sales />} />
+                <Route path="/order-generator" element={<OrderGenerator />} />
+                <Route path="/logistics" element={<LogisticsTracker />} />
+                <Route path="/order/:orderNo" element={<OrderTrack />} />
+                
+                {/* Admin Routes */}
+                <Route path="/admin" element={<AdminDashboard />} />
+                <Route path="/admin/resources" element={<ResourceManager />} />
+                <Route path="/admin/users" element={<UserManager />} />
+                <Route path="/admin/printers" element={<PrinterManager />} />
+                <Route path="/admin/orders" element={<AdminOrderManager />} />
+              </Routes>
+            </Suspense>
           </main>
           <Footer />
           <CookieConsent />
