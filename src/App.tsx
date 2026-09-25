@@ -1,5 +1,5 @@
 import { Suspense, lazy, useEffect } from "react";
-import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import { BrowserRouter as Router, Routes, Route, useLocation } from "react-router-dom";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import LineAnimationBackground from "@/components/LineAnimationBackground";
@@ -8,6 +8,7 @@ import ToastViewport from "@/components/ToastViewport";
 import Home from "@/pages/Home";
 import { supabase } from "@/lib/supabase";
 import { useUserStore } from "@/store/useUserStore";
+import { AnimatePresence, motion } from "framer-motion";
 
 // 路由级代码分割：非首页 / 管理后台页面全部延迟加载
 const Products = lazy(() => import("@/pages/Products"));
@@ -21,6 +22,7 @@ const Register = lazy(() => import("@/pages/Register"));
 const Privacy = lazy(() => import("@/pages/Privacy"));
 const Terms = lazy(() => import("@/pages/Terms"));
 const Sales = lazy(() => import("@/pages/Sales"));
+const CookiePolicy = lazy(() => import("@/pages/CookiePolicy"));
 const OrderGenerator = lazy(() => import("@/pages/OrderGenerator"));
 const AdminDashboard = lazy(() => import("@/pages/Admin/Dashboard"));
 const ResourceManager = lazy(() => import("@/pages/Admin/ResourceManager"));
@@ -33,12 +35,58 @@ const OrderTrack = lazy(() => import("@/pages/OrderTrack"));
 // 懒加载占位 UI — 保持与现有视觉一致
 function PageSkeleton() {
   return (
-    <div className="min-h-[60vh] flex items-center justify-center bg-[#f5f5f7]">
+    <div className="min-h-[60vh] flex items-center justify-center bg-[#fafafc]">
       <div className="flex flex-col items-center gap-4">
         <div className="w-10 h-10 md:w-12 md:h-12 rounded-full border-3 border-[#0071e3]/20 border-t-[#0071e3] animate-spin"></div>
         <div className="text-sm md:text-base text-[#86868b]">加载中…</div>
       </div>
     </div>
+  );
+}
+
+const pageTransition = {
+  initial: { opacity: 0, y: 15, filter: "blur(4px)" },
+  animate: { opacity: 1, y: 0, filter: "blur(0px)" },
+  exit: { opacity: 0, y: -15, filter: "blur(4px)" },
+  transition: { duration: 0.4, ease: [0.22, 1, 0.36, 1] }
+};
+
+function AnimatedRoutes() {
+  const location = useLocation();
+  
+  // 滚动到顶部，带有平滑动画
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }, [location.pathname]);
+
+  return (
+    <AnimatePresence mode="wait">
+      <Routes location={location} key={location.pathname}>
+        <Route path="/" element={<motion.div {...pageTransition}><Home /></motion.div>} />
+        <Route path="/products" element={<motion.div {...pageTransition}><Products /></motion.div>} />
+        <Route path="/resources" element={<motion.div {...pageTransition}><Resources /></motion.div>} />
+        <Route path="/advice" element={<motion.div {...pageTransition}><Advice /></motion.div>} />
+        <Route path="/printers" element={<motion.div {...pageTransition}><Printers /></motion.div>} />
+        <Route path="/team" element={<motion.div {...pageTransition}><Team /></motion.div>} />
+        <Route path="/contact" element={<motion.div {...pageTransition}><Contact /></motion.div>} />
+        <Route path="/login" element={<motion.div {...pageTransition}><Login /></motion.div>} />
+        <Route path="/register" element={<motion.div {...pageTransition}><Register /></motion.div>} />
+        <Route path="/privacy" element={<motion.div {...pageTransition}><Privacy /></motion.div>} />
+        <Route path="/terms" element={<motion.div {...pageTransition}><Terms /></motion.div>} />
+        <Route path="/cookie-policy" element={<motion.div {...pageTransition}><CookiePolicy /></motion.div>} />
+        <Route path="/sales" element={<motion.div {...pageTransition}><Sales /></motion.div>} />
+        <Route path="/order-generator" element={<motion.div {...pageTransition}><OrderGenerator /></motion.div>} />
+        <Route path="/logistics" element={<motion.div {...pageTransition}><LogisticsTracker /></motion.div>} />
+        <Route path="/order/:orderNo" element={<motion.div {...pageTransition}><OrderTrack /></motion.div>} />
+        
+        {/* Admin Routes */}
+        <Route path="/admin" element={<motion.div {...pageTransition}><AdminDashboard /></motion.div>} />
+        <Route path="/admin/resources" element={<motion.div {...pageTransition}><ResourceManager /></motion.div>} />
+        <Route path="/admin/users" element={<motion.div {...pageTransition}><UserManager /></motion.div>} />
+        <Route path="/admin/printers" element={<motion.div {...pageTransition}><PrinterManager /></motion.div>} />
+        <Route path="/admin/orders" element={<motion.div {...pageTransition}><AdminOrderManager /></motion.div>} />
+      </Routes>
+    </AnimatePresence>
   );
 }
 
@@ -190,32 +238,9 @@ export default function App() {
         <LineAnimationBackground />
         <div className="relative z-10 flex flex-col min-h-screen">
           <Navbar />
-          <main className="flex-grow">
+          <main className="flex-1 w-full relative">
             <Suspense fallback={<PageSkeleton />}>
-              <Routes>
-                <Route path="/" element={<Home />} />
-                <Route path="/products" element={<Products />} />
-                <Route path="/resources" element={<Resources />} />
-                <Route path="/advice" element={<Advice />} />
-                <Route path="/printers" element={<Printers />} />
-                <Route path="/team" element={<Team />} />
-                <Route path="/contact" element={<Contact />} />
-                <Route path="/login" element={<Login />} />
-                <Route path="/register" element={<Register />} />
-                <Route path="/privacy" element={<Privacy />} />
-                <Route path="/terms" element={<Terms />} />
-                <Route path="/sales" element={<Sales />} />
-                <Route path="/order-generator" element={<OrderGenerator />} />
-                <Route path="/logistics" element={<LogisticsTracker />} />
-                <Route path="/order/:orderNo" element={<OrderTrack />} />
-                
-                {/* Admin Routes */}
-                <Route path="/admin" element={<AdminDashboard />} />
-                <Route path="/admin/resources" element={<ResourceManager />} />
-                <Route path="/admin/users" element={<UserManager />} />
-                <Route path="/admin/printers" element={<PrinterManager />} />
-                <Route path="/admin/orders" element={<AdminOrderManager />} />
-              </Routes>
+              <AnimatedRoutes />
             </Suspense>
           </main>
           <Footer />

@@ -165,7 +165,7 @@ export default function Products() {
 
               <Link 
                 to="/contact" 
-                className="btn-primary inline-flex items-center gap-2 px-6 py-2.5 md:px-8 md:py-3 text-xs md:text-base font-semibold btn-shine ripple-target"
+                className="btn-primary inline-flex items-center gap-2 px-6 py-2.5 md:px-8 md:py-3 text-xs md:text-base font-semibold ripple-target"
               >
                 <Mail className="w-3.5 h-3.5 md:w-4 md:h-4" />
                 上线提醒 · 邮件通知我

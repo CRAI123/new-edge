@@ -123,6 +123,57 @@ export default function Team() {
           </div>
         </div>
       </section>
+
+      {/* Community Governance Section (New) */}
+      <section className="section-padding bg-white relative overflow-hidden">
+        <div className="max-w-7xl mx-auto relative z-10">
+          <div className="text-center mb-16">
+            <motion.div 
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.7 }}
+            >
+              <div className="inline-flex items-center gap-2 px-4 py-1 rounded-full bg-[#E6F4FF] text-[#0071e3] text-xs font-bold uppercase tracking-wider mb-4">
+                Community
+              </div>
+              <h2 className="heading-medium mb-6">社区与审核机制</h2>
+              <p className="text-description max-w-2xl mx-auto">
+                为了保证平台课件和资源的质量，我们实行了严格的社区贡献者审核机制。感谢以下成员为维护高质量学习环境所做的贡献。
+              </p>
+            </motion.div>
+          </div>
+
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-6 max-w-5xl mx-auto">
+            {['CAN757', 'LTY-Aviation', 'Lh494', 'Ye-photograph'].map((reviewer, idx) => (
+              <motion.div
+                key={idx}
+                initial={{ opacity: 0, scale: 0.9 }}
+                whileInView={{ opacity: 1, scale: 1 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.5, delay: idx * 0.1 }}
+                className="p-6 rounded-2xl bg-[#f5f5f7] border border-[#eaeaea] text-center card-hover flex flex-col items-center justify-center gap-3"
+              >
+                <div className="w-12 h-12 rounded-full bg-white flex items-center justify-center shadow-sm text-lg font-bold text-[#0071e3]">
+                  {reviewer.charAt(0)}
+                </div>
+                <div className="font-semibold text-[#1d1d1f] truncate w-full">{reviewer}</div>
+                <div className="text-xs text-[#86868b] px-3 py-1 bg-white rounded-full">审核员</div>
+              </motion.div>
+            ))}
+          </div>
+          
+          <motion.div 
+            initial={{ opacity: 0 }}
+            whileInView={{ opacity: 1 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.8, delay: 0.5 }}
+            className="text-center mt-12"
+          >
+            <p className="text-sm text-[#86868b]">如果您也想为社区贡献高质量内容，欢迎通过“联系我们”申请成为创作者或审核员。</p>
+          </motion.div>
+        </div>
+      </section>
     </div>
   );
 }

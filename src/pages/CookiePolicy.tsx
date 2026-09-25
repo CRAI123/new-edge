@@ -1,0 +1,1 @@
+﻿import React from 'react'; export default function CookiePolicy() { return <div className='pt-24 min-h-screen max-w-4xl mx-auto px-6'><h1 className='text-4xl font-bold mb-8'>Cookie 政策</h1><p className='text-[#86868b] leading-relaxed'>我们在睿造打印工坊使用 Cookies 以提升您的浏览体验、分析网站流量，并了解用户从何而来。继续浏览本网站即表示您同意我们使用 Cookies。</p></div>; }

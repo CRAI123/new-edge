@@ -53,7 +53,7 @@ export default function Footer() {
           <ul className="flex flex-col gap-3">
             <li className="text-[#1d1d1f]">邮箱：<a href="mailto:2623681461@qq.com" className="hover:text-[#0071e3] transition-colors">2623681461@qq.com</a></li>
             <li className="text-[#86868b]">所在地：湖南 · 长沙 · 学生创客团队</li>
-            <li className="pt-1"><Link to="/contact" className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-white border border-[#d2d2d7] hover:bg-[#0071e3] hover:text-white hover:border-[#0071e3] text-[#1d1d1f] text-xs font-semibold transition-all btn-shine">
+            <li className="pt-1"><Link to="/contact" className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-white border border-[#d2d2d7] hover:bg-[#0071e3] hover:text-white hover:border-[#0071e3] text-[#1d1d1f] text-xs font-semibold transition-all">
               邮件联系
             </Link></li>
           </ul>
@@ -63,11 +63,18 @@ export default function Footer() {
       <div className="max-w-7xl mx-auto relative z-10 flex flex-col md:flex-row justify-between items-center gap-6">
         <div className="flex flex-col md:flex-row gap-4 md:gap-8 items-center text-[#86868b]">
           <p>© 2026 Rayzo print studio. 保留所有权利。</p>
-          <div className="flex gap-6">
+          <div className="flex flex-wrap justify-center gap-6">
             <Link to="/privacy" className="hover:underline hover:text-[#0071e3] transition-colors nav-link-scan inline-block">隐私政策</Link>
             <Link to="/terms" className="hover:underline hover:text-[#0071e3] transition-colors nav-link-scan inline-block">使用条款</Link>
+            <Link to="/cookie-policy" className="hover:underline hover:text-[#0071e3] transition-colors nav-link-scan inline-block">Cookie 政策</Link>
             <Link to="/sales" className="hover:underline hover:text-[#0071e3] transition-colors nav-link-scan inline-block">免责声明</Link>
           </div>
+          {/* 备案号暂时隐藏 */}
+          {/* <div className="flex items-center gap-2 mt-2 md:mt-0">
+            <a href="https://beian.miit.gov.cn/" target="_blank" rel="noopener noreferrer" className="hover:text-[#0071e3] transition-colors hover:underline">
+              湘ICP备XXXXXXXX号-1
+            </a>
+          </div> */}
         </div>
         <div className="flex items-center gap-4">
           <div className="flex gap-4">

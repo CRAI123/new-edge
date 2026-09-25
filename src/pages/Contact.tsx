@@ -93,6 +93,11 @@ export default function Contact() {
                   </motion.div>
                 ))}
               </div>
+              
+              <div className="flex items-center gap-2 text-sm text-[#86868b] mt-8 p-4 bg-[#f5f5f7] rounded-2xl border border-[#eaeaea] card-hover">
+                <Clock className="w-5 h-5 text-[#0071e3]" />
+                <span>服务承诺：我们会在 <strong className="text-[#1d1d1f]">24 小时</strong> 内回复您的留言或邮件。</span>
+              </div>
 
               {/* Map Placeholder */}
               <motion.div
@@ -167,7 +172,7 @@ export default function Contact() {
                   <button 
                     disabled={status === "loading"}
                     type="submit" 
-                    className="w-full btn-primary py-4 flex items-center justify-center gap-2 btn-shine ripple-target"
+                    className="w-full btn-primary py-4 flex items-center justify-center gap-2 ripple-target"
                   >
                     {status === "loading" ? "发送中..." : status === "success" ? "发送成功！" : status === "error" ? "发送失败，请重试" : (
                       <>发送消息 <Send className="w-4 h-4" /></>

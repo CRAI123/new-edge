@@ -225,7 +225,7 @@ export default function Resources() {
                             
                             <button 
                               onClick={() => handleDownload(item)}
-                              className={`w-full py-3 rounded-xl text-sm font-semibold shadow-sm transition-all flex items-center justify-center gap-2 btn-shine ripple-target ${
+                              className={`w-full py-3 rounded-xl text-sm font-semibold shadow-sm transition-all flex items-center justify-center gap-2 ripple-target ${
                                 isLocked 
                                   ? "bg-white text-[#86868b] cursor-not-allowed" 
                                   : "bg-white text-[#1d1d1f] hover:bg-[#0071e3] hover:text-white hover:border-[#0071e3] border border-transparent"
@@ -280,7 +280,7 @@ export default function Resources() {
               viewport={{ once: true }}
               transition={{ duration: 0.7, delay: 0.2 }}
               onClick={() => setShowQRModal(true)}
-              className="btn-primary flex items-center gap-2 px-8 btn-shine ripple-target"
+              className="btn-primary flex items-center gap-2 px-8 ripple-target"
             >
               <MessageSquare className="w-5 h-5" />
               立即入群
