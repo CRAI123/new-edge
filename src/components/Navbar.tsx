@@ -30,7 +30,7 @@ export default function Navbar() {
   };
 
   return (
-    <div className="sticky top-0 z-[100] pt-3 md:pt-5 px-4 md:px-8 pb-3 pointer-events-none">
+    <div className="fixed top-0 left-0 right-0 z-[100] pt-3 md:pt-5 px-4 md:px-8 pb-3 pointer-events-none">
     <nav className="mx-auto max-w-7xl h-16 md:h-20 px-4 md:px-8 flex items-center justify-between rounded-2xl md:rounded-[2rem] bg-white/75 backdrop-blur-2xl border border-white/80 shadow-[0_8px_32px_-8px_rgba(0,0,0,0.1)] pointer-events-auto transition-all relative">
       <Link to="/" className="flex items-center gap-3 group">
         <div className="w-10 h-10 md:w-12 md:h-12 rounded-xl overflow-hidden bg-white shadow-sm transition-all duration-500 group-hover:scale-105 group-hover:shadow-[0_10px_24px_-6px_rgba(0,113,227,0.35)] shimmer-border">

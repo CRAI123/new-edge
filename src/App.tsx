@@ -212,7 +212,7 @@ export default function App() {
       // 优先级：数据库 role > 强制管理员邮箱判断 > 元数据 role > 默认 individual
       let role = profile?.role || metadata.role || 'individual';
       
-      if (session.user.email === '2623681461@qq.com') {
+      if (session.user.email === 'studio@post.rayzo.cn') {
         role = 'admin';
       }
       
@@ -252,7 +252,7 @@ export default function App() {
       />
       <div className="flex flex-col min-h-screen relative overflow-hidden">
         <LineAnimationBackground />
-        <div className="relative z-10 flex flex-col min-h-screen">
+        <div className="relative z-10 flex flex-col min-h-screen pt-20 md:pt-28">
           <Navbar />
           <main className="flex-1 w-full relative">
             <Suspense fallback={<PageSkeleton />}>

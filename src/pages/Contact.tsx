@@ -22,7 +22,7 @@ export default function Contact() {
     try {
       await new Promise(resolve => setTimeout(resolve, 1200));
       
-      const mailto = `mailto:2623681461@qq.com?subject=${encodeURIComponent(`【网站留言】来自 ${data.name} 的咨询`)}&body=${encodeURIComponent(`姓名：${data.name}\n邮箱：${data.email}\n电话：${data.phone}\n\n留言内容：\n${data.message}`)}`;
+      const mailto = `mailto:studio@post.rayzo.cn?subject=${encodeURIComponent(`【网站留言】来自 ${data.name} 的咨询`)}&body=${encodeURIComponent(`姓名：${data.name}\n邮箱：${data.email}\n电话：${data.phone}\n\n留言内容：\n${data.message}`)}`;
       
       setStatus("success");
       (e.target as HTMLFormElement).reset();
@@ -72,7 +72,7 @@ export default function Contact() {
               </motion.h3>
               <div className="space-y-6">
                 {[
-                  { icon: <Mail className="w-6 h-6 text-[#0071e3]" />, title: "联系邮箱", lines: ["2623681461@qq.com", "合作 · 咨询 · 资源需求"] },
+                  { icon: <Mail className="w-6 h-6 text-[#0071e3]" />, title: "联系邮箱", lines: ["studio@post.rayzo.cn", "合作 · 咨询 · 资源需求"] },
                   { icon: <MapPin className="w-6 h-6 text-[#0071e3]" />, title: "工作室所在地", lines: ["湖南 · 长沙", "学生创客团队，线下交流请提前邮件预约"] }
                 ].map((item, idx) => (
                   <motion.div

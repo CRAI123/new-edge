@@ -129,7 +129,7 @@ export default function Login() {
     let role = profile?.role || metadata.role || 'individual';
     
     // 强制管理员邮箱判断
-    if (supabaseUser.email === '2623681461@qq.com') {
+    if (supabaseUser.email === 'studio@post.rayzo.cn') {
       role = 'admin';
     }
 
@@ -170,11 +170,11 @@ export default function Login() {
 
     try {
       // 快捷管理员登录 (admin123)
-      if (email === "2623681461@qq.com" && password === "admin123") {
+      if (email === "studio@post.rayzo.cn" && password === "admin123") {
         setAdmin(true);
         setUser({
           id: "admin-id",
-          email: "2623681461@qq.com",
+          email: "studio@post.rayzo.cn",
           fullName: "系统管理员 (快捷登录)",
           role: "admin",
           level: 4,

@@ -216,7 +216,7 @@ export default function CookieConsent() {
                   <h4 className="font-bold text-[#1d1d1f] mb-2 text-base">4. 您的权利</h4>
                   <p>
                     您可随时请求查看、更正或删除您的个人数据，或撤回对非必要 Cookie 的同意。
-                    联系方式：<span className="text-[#0071e3] font-semibold">2623681461@qq.com</span>（湖南长沙）。
+                    联系方式：<span className="text-[#0071e3] font-semibold">studio@post.rayzo.cn</span>（湖南长沙）。
                   </p>
                 </section>
                 <section>

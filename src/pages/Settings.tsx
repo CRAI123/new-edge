@@ -15,7 +15,18 @@ export default function Settings() {
   
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [verificationCode, setVerificationCode] = useState("");
   const [loadingPassword, setLoadingPassword] = useState(false);
+  const [sendingCode, setSendingCode] = useState(false);
+  const [countdown, setCountdown] = useState(0);
+
+  useEffect(() => {
+    let timer: NodeJS.Timeout;
+    if (countdown > 0) {
+      timer = setInterval(() => setCountdown(c => c - 1), 1000);
+    }
+    return () => clearInterval(timer);
+  }, [countdown]);
 
   useEffect(() => {
     if (!user) {
@@ -57,6 +68,26 @@ export default function Settings() {
     }
   };
 
+  const handleSendCode = async () => {
+    if (countdown > 0) return;
+    setSendingCode(true);
+    try {
+      const { error } = await supabase.auth.signInWithOtp({
+        email: user.email,
+        options: {
+          shouldCreateUser: false,
+        }
+      });
+      if (error) throw error;
+      showToast("success", "验证码已发送到您的邮箱");
+      setCountdown(60);
+    } catch (err: any) {
+      showToast("error", err.message || "验证码发送失败");
+    } finally {
+      setSendingCode(false);
+    }
+  };
+
   const handleUpdatePassword = async (e: React.FormEvent) => {
     e.preventDefault();
     if (password.length < 8) {
@@ -67,9 +98,30 @@ export default function Settings() {
       showToast("error", "两次输入的密码不一致");
       return;
     }
+    if (!verificationCode) {
+      showToast("error", "请输入邮箱验证码");
+      return;
+    }
 
     setLoadingPassword(true);
     try {
+      // 1. 先验证验证码
+      const { data, error: verifyError } = await supabase.auth.verifyOtp({
+        email: user.email,
+        token: verificationCode,
+        type: 'magiclink'
+      });
+
+      if (verifyError) {
+        const { error: verifyError2 } = await supabase.auth.verifyOtp({
+          email: user.email,
+          token: verificationCode,
+          type: 'signup'
+        });
+        if (verifyError2) throw new Error("验证码不正确或已过期");
+      }
+
+      // 2. 验证成功后，更新密码
       const { error } = await supabase.auth.updateUser({
         password: password
       });
@@ -78,6 +130,7 @@ export default function Settings() {
 
       setPassword("");
       setConfirmPassword("");
+      setVerificationCode("");
       showToast("success", "密码修改成功");
     } catch (err: any) {
       showToast("error", err.message || "密码修改失败");
@@ -163,6 +216,31 @@ export default function Settings() {
 
             <form onSubmit={handleUpdatePassword} className="max-w-md space-y-5">
               <div>
+                <label className="block text-sm font-semibold text-[#1d1d1f] mb-2">邮箱验证码</label>
+                <div className="flex gap-3">
+                  <div className="relative flex-1">
+                    <input 
+                      type="text" 
+                      value={verificationCode}
+                      onChange={(e) => setVerificationCode(e.target.value.replace(/[^0-9]/g, ''))}
+                      placeholder="8 位数字验证码"
+                      maxLength={8}
+                      className="w-full px-4 py-3 rounded-xl bg-white border border-[#d2d2d7] focus:border-[#0071e3] focus:ring-4 focus:ring-[#0071e3]/10 outline-none transition-all"
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleSendCode}
+                    disabled={sendingCode || countdown > 0}
+                    className="px-4 py-3 rounded-xl bg-[#f5f5f7] text-[#1d1d1f] font-medium hover:bg-[#e8e8ed] transition-colors disabled:opacity-50 whitespace-nowrap min-w-[120px]"
+                  >
+                    {sendingCode ? "发送中..." : countdown > 0 ? `${countdown}s 后重发` : "获取验证码"}
+                  </button>
+                </div>
+                <p className="text-xs text-[#86868b] mt-2">验证码将发送至 {user.email}</p>
+              </div>
+
+              <div>
                 <label className="block text-sm font-semibold text-[#1d1d1f] mb-2">新密码</label>
                 <div className="relative">
                   <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[#86868b]" />
@@ -192,7 +270,7 @@ export default function Settings() {
 
               <button 
                 type="submit" 
-                disabled={loadingPassword || !password || !confirmPassword}
+                disabled={loadingPassword || !password || !confirmPassword || !verificationCode}
                 className="px-6 py-2.5 rounded-xl bg-[#1d1d1f] text-white hover:bg-black font-semibold flex items-center gap-2 disabled:opacity-50 transition-colors"
               >
                 {loadingPassword ? "更新中..." : "更新密码"}

@@ -32,13 +32,13 @@ export default function Terms() {
             <b className="text-[#1d1d1f]">身份真实性：</b>注册时需提供真实、准确、完整的姓名、邮箱，并根据实际身份选择"个人用户 / 教育工作者 / 在校学生"角色；如需修改可在账号设置更新。
           </li>
           <li>
-            <b className="text-[#1d1d1f]">账号安全：</b>您有责任妥善保管邮箱、密码及 8 位 OTP 验证码。因您本人原因导致账号被盗用，损失由您自行承担；发现异常请第一时间联系 2623681461@qq.com 冻结账号。
+            <b className="text-[#1d1d1f]">账号安全：</b>您有责任妥善保管邮箱、密码及 8 位 OTP 验证码。因您本人原因导致账号被盗用，损失由您自行承担；发现异常请第一时间联系 studio@post.rayzo.cn 冻结账号。
           </li>
           <li>
             <b className="text-[#1d1d1f]">角色划分：</b>本网站将用户分为四级会员等级（LV1 龙蛋 / LV2 幼龙 / LV3 鳞铸 / LV4 古龙），不同等级可下载的课件资源范围不同，等级按登录 / 浏览 / 下载行为自动成长。
           </li>
           <li>
-            <b className="text-[#1d1d1f]">管理员权限：</b>邮箱 2623681461@qq.com 拥有最高 admin 权限，可审核发布机型、管理用户、处理违规封禁账号。
+            <b className="text-[#1d1d1f]">管理员权限：</b>邮箱 studio@post.rayzo.cn 拥有最高 admin 权限，可审核发布机型、管理用户、处理违规封禁账号。
           </li>
           <li>
             <b className="text-[#1d1d1f]">账号借用禁止：</b>账号仅限本人使用，不得出借、售卖、共享、出借给他人批量下载，一经查实立即封号处理。
@@ -80,7 +80,7 @@ export default function Terms() {
             <b className="text-[#1d1d1f]">个人非商用：</b>本站所有课件、模型、模板等数字资源，仅授权用户个人学习 / 课堂教学 / 校内活动使用，不得转载、重新打包售卖、或放到抖音、B站、百度文库等任何商业平台；学校内部可在校园范围内再分发。
           </li>
           <li>
-            <b className="text-[#1d1d1f]">合作授权：</b>机构、培训机构如需批量使用或纳入课程体系，请联系邮箱 2623681461@qq.com 沟通合作方案与授权。
+            <b className="text-[#1d1d1f]">合作授权：</b>机构、培训机构如需批量使用或纳入课程体系，请联系邮箱 studio@post.rayzo.cn 沟通合作方案与授权。
           </li>
           <li>
             <b className="text-[#1d1d1f]">保留权利：</b>本站及资源作者保留署名权；下载仅授予您个人非独占、不可转让、有限使用许可。
@@ -144,7 +144,7 @@ export default function Terms() {
       content: (
         <div className="space-y-2 text-[#86868b]">
           <p>条款接受过程中如有任何疑问、建议投诉举报：</p>
-          <p>管理员邮箱：<span className="text-[#0071e3] font-semibold">2623681461@qq.com</span></p>
+          <p>管理员邮箱：<span className="text-[#0071e3] font-semibold">studio@post.rayzo.cn</span></p>
           <p>通讯地址：湖南 · 长沙</p>
           <p>受理工作日 09:00 - 18:00（周一至周五，法定节假日除外）</p>
         </div>

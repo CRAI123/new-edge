@@ -5,7 +5,7 @@ import axios from 'axios'
 import { supabase } from '../utils/supabase.js'
 
 const router = express.Router()
-const ADMIN_EMAIL = '2623681461@qq.com'
+const ADMIN_EMAIL = 'studio@post.rayzo.cn'
 
 type OrderChannel = 'wechat_manual' | 'wechat_online'
 type OrderStatus = 'model_check' | 'production_prep' | 'printing' | 'print_done' | 'post_processing' | 'ready_to_ship' | 'cancelled'

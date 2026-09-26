@@ -92,7 +92,7 @@ export default function CookiePolicy() {
       content: (
         <div className="space-y-2 text-[#86868b]">
           <p>如果您对我们使用 Cookie 的方式有任何疑问，欢迎随时与我们取得联系。</p>
-          <p>管理员邮箱：<span className="text-[#0071e3] font-semibold">2623681461@qq.com</span></p>
+          <p>管理员邮箱：<span className="text-[#0071e3] font-semibold">studio@post.rayzo.cn</span></p>
           <p>通讯地址：湖南 · 长沙</p>
         </div>
       ),

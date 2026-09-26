@@ -234,7 +234,7 @@ export default function Sales() {
                       </div>
                       <p className="text-xs text-[#86868b] uppercase tracking-wider">联系邮箱</p>
                     </div>
-                    <p className="text-xl font-bold text-[#1d1d1f]">2623681461@qq.com</p>
+                    <p className="text-xl font-bold text-[#1d1d1f]">studio@post.rayzo.cn</p>
                     <p className="text-xs text-[#86868b] mt-2">适用于：定制咨询、资源合作、内容反馈</p>
                   </div>
                   <div className="p-6 rounded-2xl bg-gradient-to-br from-[#F6FFED] to-white border border-[#28cd41]/15">

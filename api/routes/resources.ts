@@ -2,7 +2,7 @@ import express, { type Request, type Response } from 'express'
 import { supabase } from '../utils/supabase.js'
 
 const router = express.Router()
-const ADMIN_EMAIL = '2623681461@qq.com'
+const ADMIN_EMAIL = 'studio@post.rayzo.cn'
 
 type ResourceStatus = 'draft' | 'published'
 

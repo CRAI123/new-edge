@@ -211,7 +211,7 @@ export default function Products() {
                   <div className="flex flex-col md:flex-row md:items-center gap-4">
                     <div className="flex-grow">
                       <h4 className="font-bold text-[#1d1d1f] mb-1">定制咨询邮箱</h4>
-                      <p className="text-2xl font-bold gradient-text-dual">2623681461@qq.com</p>
+                      <p className="text-2xl font-bold gradient-text-dual">studio@post.rayzo.cn</p>
                     </div>
                     <div className="text-sm text-[#86868b]">
                       <p>请在邮件中简要说明：使用场景、期望方向、数量范围</p>

@@ -51,7 +51,7 @@ export default function Footer() {
         <div>
           <h4 className="text-[#1d1d1f] font-semibold mb-6">联系与支持</h4>
           <ul className="flex flex-col gap-3">
-            <li className="text-[#1d1d1f]">邮箱：<a href="mailto:2623681461@qq.com" className="hover:text-[#0071e3] transition-colors">2623681461@qq.com</a></li>
+            <li className="text-[#1d1d1f]">邮箱：<a href="mailto:studio@post.rayzo.cn" className="hover:text-[#0071e3] transition-colors">studio@post.rayzo.cn</a></li>
             <li className="text-[#86868b]">所在地：湖南 · 长沙 · 学生创客团队</li>
             <li className="pt-1"><Link to="/contact" className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-white border border-[#d2d2d7] hover:bg-[#0071e3] hover:text-white hover:border-[#0071e3] text-[#1d1d1f] text-xs font-semibold transition-all">
               邮件联系
@@ -78,7 +78,7 @@ export default function Footer() {
         </div>
         <div className="flex items-center gap-4">
           <div className="flex gap-4">
-            <a href="mailto:2623681461@qq.com" title="发送邮件" className="w-9 h-9 rounded-full bg-[#d2d2d7] hover:bg-[#28cd41] transition-all duration-300 cursor-pointer flex items-center justify-center text-white hover:-translate-y-0.5 hover:shadow-[0_6px_16px_-4px_rgba(40,205,65,0.45)] group relative avatar-ring">
+            <a href="mailto:studio@post.rayzo.cn" title="发送邮件" className="w-9 h-9 rounded-full bg-[#d2d2d7] hover:bg-[#28cd41] transition-all duration-300 cursor-pointer flex items-center justify-center text-white hover:-translate-y-0.5 hover:shadow-[0_6px_16px_-4px_rgba(40,205,65,0.45)] group relative avatar-ring">
               <Mail className="w-4 h-4" />
             </a>
             <a href="https://github.com" target="_blank" rel="noopener noreferrer" title="GitHub" className="w-9 h-9 rounded-full bg-[#d2d2d7] hover:bg-[#1d1d1f] transition-all duration-300 cursor-pointer flex items-center justify-center text-white hover:-translate-y-0.5 hover:shadow-[0_6px_16px_-4px_rgba(0,0,0,0.4)] group relative avatar-ring">

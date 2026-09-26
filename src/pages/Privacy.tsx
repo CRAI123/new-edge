@@ -36,7 +36,7 @@ export default function Privacy() {
         <ul className="list-disc pl-5 space-y-2 text-[#86868b]">
           <li>提供核心服务：账号登录、课件资源下载、创作工具使用、IP周边展示与咨询、社群交流等。</li>
           <li>身份与权限：根据用户角色与 LV 等级（LV1 龙蛋 ~ LV4 古龙）控制资源访问。</li>
-          <li>账户安全：检测异常登录、防止滥用、验证管理员身份（邮箱 2623681461@qq.com）。</li>
+          <li>账户安全：检测异常登录、防止滥用、验证管理员身份（邮箱 studio@post.rayzo.cn）。</li>
           <li>产品改进：分析页面访问情况，优化内容结构与用户体验（可在 Cookie 设置中关闭分析类）。</li>
           <li>消息通知：重要政策变更、系统维护通知通过注册邮箱发送（非营销）。</li>
           <li>AI 辅助服务：资源归档、内容分类、文案润色等通过 DeepSeek API 处理，AI 生成内容默认进入草稿状态，需管理员人工审核后发布。</li>
@@ -132,7 +132,7 @@ export default function Privacy() {
           <li><b className="text-[#1d1d1f]">更正权：</b>可随时修改姓名、学校、角色等个人资料。</li>
           <li><b className="text-[#1d1d1f]">删除权：</b>可书面申请删除账号及所有个人数据，我们将在 30 天内处理完毕（法律要求保留的除外）。</li>
           <li><b className="text-[#1d1d1f]">撤回同意：</b>随时通过底部 Cookie 栏修改 Cookie 偏好，或邮件联系撤回其他同意。</li>
-          <li><b className="text-[#1d1d1f]">注销账号：</b>发送邮件到 2623681461@qq.com，标题注明「账号注销申请」。</li>
+          <li><b className="text-[#1d1d1f]">注销账号：</b>发送邮件到 studio@post.rayzo.cn，标题注明「账号注销申请」。</li>
         </ul>
       ),
     },
@@ -143,7 +143,7 @@ export default function Privacy() {
         <div className="space-y-2 text-[#86868b]">
           <p>运营主体：睿造打印工坊（Rayzo Print Studio · 学生创客团队）</p>
           <p>通讯地址：湖南 · 长沙</p>
-          <p>管理员 / 数据保护联系人邮箱：<span className="text-[#0071e3] font-semibold">2623681461@qq.com</span></p>
+          <p>管理员 / 数据保护联系人邮箱：<span className="text-[#0071e3] font-semibold">studio@post.rayzo.cn</span></p>
           <p>沟通方式：邮件为主要渠道，工作日 1~3 日内回复</p>
           <p>我们将在收到您请求后的 <b className="text-[#1d1d1f]">15 个工作日内</b>予以答复。</p>
         </div>
@@ -231,7 +231,7 @@ export default function Privacy() {
             <div className="flex-grow">
               <h3 className="text-lg md:text-xl font-bold text-[#1d1d1f] mb-1.5">仍有疑问？</h3>
               <p className="text-sm text-[#86868b]">
-                欢迎通过管理员邮箱 2623681461@qq.com 与我们直接沟通。
+                欢迎通过管理员邮箱 studio@post.rayzo.cn 与我们直接沟通。
               </p>
             </div>
             <Link to="/contact" className="btn-primary px-8 py-3 whitespace-nowrap shrink-0 shadow-lg shadow-blue-500/20">
