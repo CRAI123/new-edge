@@ -28,6 +28,7 @@ import {
 import { Link, useNavigate } from "react-router-dom";
 import { showToast } from "@/lib/utils";
 import QRCode from "qrcode";
+import { useUserStore } from "@/store/useUserStore";
 
 type VirtualStatus = "pending" | "confirmed" | "printing" | "post_process" | "quality_check" | "packaging" | "shipping" | "delivered";
 
@@ -130,6 +131,7 @@ export default function OrderGenerator() {
   const [isAutoPlaying, setIsAutoPlaying] = useState(false);
   const [generatingImage, setGeneratingImage] = useState(false);
   const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null);
+  const { user } = useUserStore();
 
   const totalAmount = formData.quantity * formData.price;
 
@@ -644,6 +646,7 @@ export default function OrderGenerator() {
 
       const dataUrl = canvas.toDataURL("image/png", 0.95);
       setPreviewImageUrl(dataUrl);
+      
       showToast("success", "订单图片生成成功！已包含追踪二维码");
     } catch (err: any) {
       console.error("生成图片失败:", err);

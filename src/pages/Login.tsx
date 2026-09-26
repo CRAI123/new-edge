@@ -2,9 +2,9 @@ import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Link, useNavigate } from "react-router-dom";
 import { Mail, Lock, ArrowRight, Github, X, ShieldCheck, FileText } from "lucide-react";
-import { supabase } from "@/lib/supabase";
+import { supabase, logUserActivity } from "@/lib/supabase";
 import { useUserStore } from "@/store/useUserStore";
-import { safeAlert } from "@/lib/utils";
+import { Turnstile } from '@marsidev/react-turnstile';
 
 export default function Login() {
   const [loading, setLoading] = useState(false);
@@ -14,6 +14,7 @@ export default function Login() {
   const [isVerifying, setIsVerifying] = useState(false);
   const [otp, setOtp] = useState<string[]>(new Array(8).fill(""));
   const [agreePolicy, setAgreePolicy] = useState(false);
+  const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
   const navigate = useNavigate();
   const { setUser, setAdmin } = useUserStore();
@@ -26,6 +27,10 @@ export default function Login() {
     }
     if (!agreePolicy) {
       setError("请先阅读并同意服务条款与隐私政策");
+      return;
+    }
+    if (!turnstileToken) {
+      setError("请先完成人机验证");
       return;
     }
     setLoading(true);
@@ -136,13 +141,16 @@ export default function Login() {
       level: profile?.level || 1,
       loginCount: profile?.login_count || 1,
       browseCount: profile?.browse_count || 0,
-      downloadCount: profile?.download_count || 0
+      downloadCount: profile?.download_count || 0,
+      require_password_change: profile?.require_password_change || false
     });
 
     if (role === 'admin') {
       setAdmin(true);
+      await logUserActivity(supabaseUser.id, '管理员登录');
       navigate("/admin");
     } else {
+      await logUserActivity(supabaseUser.id, '用户登录');
       navigate("/");
     }
   };
@@ -151,6 +159,10 @@ export default function Login() {
     e.preventDefault();
     if (!agreePolicy) {
       setError("请先阅读并同意服务条款与隐私政策");
+      return;
+    }
+    if (!turnstileToken) {
+      setError("请先完成人机验证");
       return;
     }
     setLoading(true);
@@ -168,7 +180,8 @@ export default function Login() {
           level: 4,
           loginCount: 999,
           browseCount: 999,
-          downloadCount: 999
+          downloadCount: 999,
+          require_password_change: false
         });
         navigate("/admin");
         return;
@@ -245,6 +258,25 @@ export default function Login() {
                 placeholder="name@example.com"
               />
             </div>
+          </div>
+
+          {/* Turnstile Widget */}
+          <div className="flex justify-center w-full overflow-hidden rounded-xl bg-[#f5f5f7] border border-transparent hover:border-[#d2d2d7] transition-colors">
+            <Turnstile
+              siteKey="0x4AAAAAAFEV-PHDZX-ZmnQP"
+              onSuccess={(token) => setTurnstileToken(token)}
+              options={{
+                theme: "light",
+                language: "zh-cn"
+              }}
+              style={{
+                width: '100%',
+                display: 'flex',
+                justifyContent: 'center',
+                transform: 'scale(1.02)', // 微微放大以填满容器
+                transformOrigin: 'center center'
+              }}
+            />
           </div>
 
           <div className="flex flex-col gap-4">
@@ -362,7 +394,7 @@ export default function Login() {
       {/* OTP Verification Modal */}
       <AnimatePresence>
         {isVerifying && (
-          <div className="fixed inset-0 z-[999] flex items-center justify-center p-6">
+          <div className="fixed inset-0 z-[999] flex items-center justify-center p-4 sm:p-6">
             <motion.div 
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -374,21 +406,21 @@ export default function Login() {
               initial={{ opacity: 0, scale: 0.9, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.9, y: 20 }}
-              className="relative w-full max-w-xl bg-white rounded-[2.5rem] shadow-2xl overflow-visible p-8 md:p-12 z-[1000] shimmer-border group"
+              className="relative w-full max-w-xl bg-white rounded-[2rem] sm:rounded-[2.5rem] shadow-2xl overflow-visible p-6 sm:p-8 md:p-12 z-[1000] shimmer-border group"
             >
               <button 
                 onClick={() => setIsVerifying(false)}
-                className="absolute right-8 top-8 p-2 rounded-full hover:bg-[#f5f5f7] transition-colors"
+                className="absolute right-4 top-4 sm:right-8 sm:top-8 p-2 rounded-full hover:bg-[#f5f5f7] transition-colors"
               >
-                <X className="w-6 h-6 text-[#86868b]" />
+                <X className="w-5 h-5 sm:w-6 sm:h-6 text-[#86868b]" />
               </button>
 
               <div className="text-center mb-10">
-                <div className="w-20 h-20 bg-[#0071e3]/5 rounded-3xl flex items-center justify-center mx-auto mb-6">
-                  <ShieldCheck className="w-10 h-10 text-[#0071e3]" />
+                <div className="w-16 h-16 sm:w-20 sm:h-20 bg-[#0071e3]/5 rounded-3xl flex items-center justify-center mx-auto mb-6">
+                  <ShieldCheck className="w-8 h-8 sm:w-10 sm:h-10 text-[#0071e3]" />
                 </div>
-                <h2 className="text-2xl font-bold text-[#1d1d1f] mb-3">登录验证</h2>
-                <p className="text-[#86868b] px-4">
+                <h2 className="text-xl sm:text-2xl font-bold text-[#1d1d1f] mb-3">登录验证</h2>
+                <p className="text-[#86868b] px-4 text-sm sm:text-base">
                   我们已向您的邮箱 <span className="text-[#1d1d1f] font-semibold">{email}</span> 发送了 8 位验证码。
                 </p>
               </div>
@@ -400,8 +432,8 @@ export default function Login() {
               )}
 
               <div className="flex flex-col items-center gap-8">
-                <div className="flex items-center gap-2 md:gap-3">
-                  <div className="flex gap-2 md:gap-3">
+                <div className="flex items-center gap-1 sm:gap-2 md:gap-3">
+                  <div className="flex gap-1 sm:gap-2 md:gap-3">
                     {otp.slice(0, 4).map((data, index) => (
                       <input
                         key={index}
@@ -411,12 +443,12 @@ export default function Login() {
                         value={data}
                         onChange={(e) => handleOtpChange(e.target, index)}
                         onKeyDown={(e) => handleKeyDown(e, index)}
-                        className="w-10 h-14 md:w-12 md:h-16 text-center text-2xl font-bold bg-[#f5f5f7] border-2 border-transparent rounded-2xl focus:border-[#0071e3] focus:bg-white focus:ring-4 focus:ring-[#0071e3]/10 outline-none transition-all"
+                        className="w-8 h-12 sm:w-10 sm:h-14 md:w-12 md:h-16 px-0 text-center text-xl sm:text-2xl font-bold bg-[#f5f5f7] border-2 border-transparent rounded-xl sm:rounded-2xl focus:border-[#0071e3] focus:bg-white focus:ring-4 focus:ring-[#0071e3]/10 outline-none transition-all"
                       />
                     ))}
                   </div>
-                  <div className="w-4 h-[2px] bg-[#d2d2d7] rounded-full mx-1" />
-                  <div className="flex gap-2 md:gap-3">
+                  <div className="w-2 sm:w-4 h-[2px] bg-[#d2d2d7] rounded-full mx-0.5 sm:mx-1" />
+                  <div className="flex gap-1 sm:gap-2 md:gap-3">
                     {otp.slice(4, 8).map((data, index) => (
                       <input
                         key={index + 4}
@@ -426,7 +458,7 @@ export default function Login() {
                         value={data}
                         onChange={(e) => handleOtpChange(e.target, index + 4)}
                         onKeyDown={(e) => handleKeyDown(e, index + 4)}
-                        className="w-10 h-14 md:w-12 md:h-16 text-center text-2xl font-bold bg-[#f5f5f7] border-2 border-transparent rounded-2xl focus:border-[#0071e3] focus:bg-white focus:ring-4 focus:ring-[#0071e3]/10 outline-none transition-all"
+                        className="w-8 h-12 sm:w-10 sm:h-14 md:w-12 md:h-16 px-0 text-center text-xl sm:text-2xl font-bold bg-[#f5f5f7] border-2 border-transparent rounded-xl sm:rounded-2xl focus:border-[#0071e3] focus:bg-white focus:ring-4 focus:ring-[#0071e3]/10 outline-none transition-all"
                       />
                     ))}
                   </div>

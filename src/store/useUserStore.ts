@@ -11,6 +11,7 @@ export interface UserProfile {
   loginCount: number;
   browseCount: number;
   downloadCount: number;
+  require_password_change?: boolean;
 }
 
 interface UserState {

@@ -5,7 +5,10 @@ import DocViewer, { DocViewerRenderers } from "@cyntler/react-doc-viewer";
 import { Download, FileText, Video, MessageSquare, Lock, X, BookOpen, GraduationCap, Lightbulb, Wrench, Eye, Loader2, AlertCircle, RefreshCw, Box } from "lucide-react";
 import { useUserStore } from "@/store/useUserStore";
 import { supabase } from "@/lib/supabase";
-import { showToast, safeConfirm } from "@/lib/utils";// --- 基础数据结构 ---
+import { showToast, safeConfirm } from "@/lib/utils";
+import { logUserActivity } from "@/lib/supabase";
+import { Turnstile } from '@marsidev/react-turnstile';
+// --- 基础数据结构 ---
 interface ResourceItem {
   id: string | number;
   title: string;
@@ -41,6 +44,8 @@ export default function Resources() {
   const [isSlowLoading, setIsSlowLoading] = useState(false);
   const [downloadProgress, setDownloadProgress] = useState<{ id: string | number, progress: number } | null>(null);
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
+  const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
+  const [showCaptchaModal, setShowCaptchaModal] = useState<{ isOpen: boolean, action: 'download' | 'preview', item: ResourceItem | null }>({ isOpen: false, action: 'download', item: null });
 
   useEffect(() => {
     let timer: NodeJS.Timeout;
@@ -119,18 +124,31 @@ export default function Resources() {
     }
   };
 
-  const handleDownload = async (item: ResourceItem) => {
+  const handleDownloadClick = (item: ResourceItem) => {
     if (!user) {
       showToast("info", "请先登录后再下载课件资源。");
       return;
     }
+    if (!turnstileToken) {
+      setShowCaptchaModal({ isOpen: true, action: 'download', item });
+      return;
+    }
+    executeDownload(item);
+  };
 
+  const executeDownload = async (item: ResourceItem) => {
     if (downloadProgress?.id === item.id) {
       showToast("info", "该文件正在下载中，请稍候...");
       return;
     }
 
-    updateStats('download');
+    if (user) {
+      updateStats('download');
+      // 记录下载动态
+      logUserActivity(user.id, '下载课件资源', { 
+        resource_title: item.title,
+      });
+    }
     
     try {
       showToast("info", "正在准备下载...");
@@ -200,17 +218,31 @@ export default function Resources() {
     }
   };
 
-  const handlePreview = (item: ResourceItem) => {
+  const handlePreviewClick = (item: ResourceItem) => {
     if (!user) {
       showToast("info", "请先登录后再预览课件资源。");
       return;
     }
+    if (!turnstileToken) {
+      setShowCaptchaModal({ isOpen: true, action: 'preview', item });
+      return;
+    }
+    executePreview(item);
+  };
 
+  const executePreview = (item: ResourceItem) => {
     const fileType = item.file_type.toLowerCase();
     if (
       fileType.includes('ppt') || fileType.includes('doc') || fileType.includes('xls') ||
       fileType.includes('pdf') || fileType.includes('mp4') || fileType.includes('png') || fileType.includes('jpg')
     ) {
+      if (user) {
+        // 记录预览动态
+        logUserActivity(user.id, '预览课件资源', { 
+          resource_title: item.title,
+        });
+      }
+
       setIsPreviewLoading(true);
       setPreviewError(false);
       setPreviewEngine('microsoft');
@@ -329,7 +361,7 @@ export default function Resources() {
                           className="group relative bg-white rounded-3xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 border border-gray-100 flex flex-col cursor-pointer"
                           onClick={() => {
                             if (!isLocked) {
-                              handlePreview(item);
+                              handlePreviewClick(item);
                             } else {
                               showToast("info", "请先登录后再预览。");
                             }
@@ -386,7 +418,7 @@ export default function Resources() {
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   if (!isLocked) {
-                                    handlePreview(item);
+                                    handlePreviewClick(item);
                                   } else {
                                     showToast("info", "请先登录后再预览。");
                                   }
@@ -415,7 +447,7 @@ export default function Resources() {
                               <button
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  handleDownload(item);
+                                  handleDownloadClick(item);
                                 }}
                                 disabled={isLocked || downloadProgress?.id === item.id}
                                 className={`relative overflow-hidden w-9 h-9 rounded-full flex items-center justify-center transition-all ${
@@ -494,6 +526,69 @@ export default function Resources() {
           </div>
         </div>
       </section>
+
+      {/* Turnstile Captcha Modal */}
+      {typeof document !== 'undefined' && createPortal(
+        <AnimatePresence>
+          {showCaptchaModal.isOpen && (
+            <div className="fixed inset-0 z-[200] flex items-center justify-center p-6">
+              <motion.div 
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                onClick={() => setShowCaptchaModal({ isOpen: false, action: 'download', item: null })}
+                className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+              />
+              <motion.div 
+                initial={{ opacity: 0, scale: 0.9, y: 20 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.9, y: 20 }}
+                className="relative w-full max-w-md bg-white rounded-3xl shadow-2xl p-8 text-center"
+              >
+                <button 
+                  onClick={() => setShowCaptchaModal({ isOpen: false, action: 'download', item: null })}
+                  className="absolute top-4 right-4 p-2 rounded-full hover:bg-gray-100 transition-all"
+                >
+                  <X className="w-5 h-5 text-gray-500" />
+                </button>
+                
+                <h3 className="text-xl font-bold mb-2">安全验证</h3>
+                <p className="text-gray-500 text-sm mb-6">为了保护资源安全，请先完成下方的人机验证</p>
+                
+                <div className="flex justify-center w-full overflow-hidden rounded-xl bg-[#f5f5f7] border border-transparent hover:border-[#d2d2d7] transition-colors min-h-[70px]">
+                  <Turnstile
+                    siteKey="0x4AAAAAAFEV-PHDZX-ZmnQP"
+                    onSuccess={(token) => {
+                      setTurnstileToken(token);
+                      setShowCaptchaModal(prev => ({ ...prev, isOpen: false }));
+                      // 验证通过后自动执行之前被拦截的操作
+                      if (showCaptchaModal.item) {
+                        if (showCaptchaModal.action === 'download') {
+                          executeDownload(showCaptchaModal.item);
+                        } else {
+                          executePreview(showCaptchaModal.item);
+                        }
+                      }
+                    }}
+                    options={{
+                      theme: "light",
+                      language: "zh-cn"
+                    }}
+                    style={{
+                      width: '100%',
+                      display: 'flex',
+                      justifyContent: 'center',
+                      transform: 'scale(1.02)',
+                      transformOrigin: 'center center'
+                    }}
+                  />
+                </div>
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>,
+        document.body
+      )}
 
       {/* QR Modal */}
       {typeof document !== 'undefined' && createPortal(
@@ -596,7 +691,7 @@ export default function Resources() {
                     </div>
                   )}
                   <button 
-                    onClick={() => handleDownload(previewItem)}
+                    onClick={() => handleDownloadClick(previewItem)}
                     disabled={downloadProgress?.id === previewItem.id}
                     className={`hidden sm:flex items-center gap-2 px-4 py-2 rounded-full text-sm font-bold transition-all mr-2 relative overflow-hidden ${
                       downloadProgress?.id === previewItem.id
@@ -702,7 +797,7 @@ export default function Resources() {
                        <button 
                          onClick={() => {
                            setPreviewItem(null);
-                           handleDownload(previewItem);
+                           handleDownloadClick(previewItem);
                          }}
                          disabled={downloadProgress?.id === previewItem.id}
                          className={`btn-primary flex items-center justify-center gap-2 relative overflow-hidden ${downloadProgress?.id === previewItem.id ? 'cursor-wait' : ''}`}

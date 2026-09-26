@@ -45,7 +45,7 @@ export default function Team() {
                 viewport={{ once: true, margin: "-60px" }}
                 transition={{ delay: idx * 0.15, duration: 0.8 }}
                 whileHover={{ y: -8 }}
-                className="rounded-[2.5rem] bg-gradient-to-br from-white to-[#f5f5f7] p-10 md:p-12 shadow-sm border border-white hover:shadow-2xl hover:border-[#0071e3]/15 transition-all duration-500 text-center relative overflow-hidden group card-hover shimmer-border"
+                className="rounded-[2.5rem] bg-gradient-to-br from-white to-[#f5f5f7] px-10 md:px-12 pt-6 md:pt-8 pb-10 md:pb-12 shadow-sm border border-white hover:shadow-2xl hover:border-[#0071e3]/15 transition-all duration-500 text-center relative overflow-hidden group card-hover shimmer-border"
               >
                 <div className="absolute top-0 left-0 w-40 h-40 rounded-full bg-[#0071e3]/8 blur-3xl group-hover:bg-[#0071e3]/15 transition-colors opacity-60"></div>
                 <div className="absolute bottom-0 right-0 w-40 h-40 rounded-full bg-[#28cd41]/8 blur-3xl group-hover:bg-[#28cd41]/15 transition-colors opacity-60"></div>

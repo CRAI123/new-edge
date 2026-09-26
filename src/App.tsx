@@ -5,10 +5,11 @@ import Footer from "@/components/Footer";
 import LineAnimationBackground from "@/components/LineAnimationBackground";
 import CookieBanner from "@/components/CookieBanner";
 import ToastViewport from "@/components/ToastViewport";
+import ForcePasswordChangeModal from "@/components/ForcePasswordChangeModal";
 import Home from "@/pages/Home";
 import { supabase } from "@/lib/supabase";
 import { useUserStore } from "@/store/useUserStore";
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence, motion, useScroll, useSpring } from "framer-motion";
 
 // 路由级代码分割：非首页 / 管理后台页面全部延迟加载
 const Products = lazy(() => import("@/pages/Products"));
@@ -31,6 +32,8 @@ const PrinterManager = lazy(() => import("@/pages/Admin/PrinterManager"));
 const AdminOrderManager = lazy(() => import("@/pages/Admin/OrderManager"));
 const LogisticsTracker = lazy(() => import("@/pages/LogisticsTracker"));
 const OrderTrack = lazy(() => import("@/pages/OrderTrack"));
+const Profile = lazy(() => import("@/pages/Profile"));
+const Settings = lazy(() => import("@/pages/Settings"));
 
 // 懒加载占位 UI — 保持与现有视觉一致
 function PageSkeleton() {
@@ -78,6 +81,8 @@ function AnimatedRoutes() {
         <Route path="/order-generator" element={<motion.div {...pageTransition}><OrderGenerator /></motion.div>} />
         <Route path="/logistics" element={<motion.div {...pageTransition}><LogisticsTracker /></motion.div>} />
         <Route path="/order/:orderNo" element={<motion.div {...pageTransition}><OrderTrack /></motion.div>} />
+        <Route path="/profile" element={<motion.div {...pageTransition}><Profile /></motion.div>} />
+        <Route path="/settings" element={<motion.div {...pageTransition}><Settings /></motion.div>} />
         
         {/* Admin Routes */}
         <Route path="/admin" element={<motion.div {...pageTransition}><AdminDashboard /></motion.div>} />
@@ -91,7 +96,13 @@ function AnimatedRoutes() {
 }
 
 export default function App() {
-  const { setUser, setAdmin } = useUserStore();
+  const { user, setUser, setAdmin } = useUserStore();
+  const { scrollYProgress } = useScroll();
+  const scaleX = useSpring(scrollYProgress, {
+    stiffness: 100,
+    damping: 30,
+    restDelta: 0.001
+  });
 
   useEffect(() => {
     const handleRippleClick = (e: MouseEvent) => {
@@ -213,7 +224,8 @@ export default function App() {
         level: profile?.level || 1,
         loginCount: profile?.login_count || 1,
         browseCount: profile?.browse_count || 0,
-        downloadCount: profile?.download_count || 0
+        downloadCount: profile?.download_count || 0,
+        require_password_change: profile?.require_password_change || false
       });
       
       if (role === 'admin') setAdmin(true);
@@ -234,6 +246,10 @@ export default function App() {
 
   return (
     <Router>
+      <motion.div
+        className="fixed top-0 left-0 right-0 h-1 bg-gradient-to-r from-[#0071e3] to-[#28cd41] origin-left z-[99999] pointer-events-none"
+        style={{ scaleX }}
+      />
       <div className="flex flex-col min-h-screen relative overflow-hidden">
         <LineAnimationBackground />
         <div className="relative z-10 flex flex-col min-h-screen">
@@ -246,6 +262,9 @@ export default function App() {
           <Footer />
           <CookieBanner />
           <ToastViewport />
+          
+          {/* Force Password Change Modal is mounted at the app root level */}
+          {user?.require_password_change && <ForcePasswordChangeModal />}
         </div>
       </div>
     </Router>

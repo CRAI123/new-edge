@@ -1,9 +1,11 @@
 import { motion } from "framer-motion";
 import { Mail, MapPin, Send, Clock } from "lucide-react";
 import { useState } from "react";
+import { useUserStore } from "@/store/useUserStore";
 
 export default function Contact() {
   const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
+  const { user } = useUserStore();
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();

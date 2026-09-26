@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { Link } from "react-router-dom";
+import { useUserStore } from "@/store/useUserStore";
 
 const PRINTER_IMAGE_FALLBACKS: {
   brand: string;
@@ -175,10 +176,15 @@ export default function Printers() {
   const [selectedPrinter, setSelectedPrinter] = useState<Printer | null>(null);
   const [imageLoadedMap, setImageLoadedMap] = useState<Record<string, boolean>>({});
   const [imageErrorMap, setImageErrorMap] = useState<Record<string, boolean>>({});
+  const { user } = useUserStore();
 
   useEffect(() => {
     fetchPublishedPrinters();
   }, []);
+
+  const handleSelectPrinter = (printer: Printer) => {
+    setSelectedPrinter(printer);
+  };
 
   const fetchPublishedPrinters = async () => {
     try {
@@ -406,7 +412,7 @@ export default function Printers() {
                     viewport={{ once: true, margin: "-60px" }}
                     transition={{ duration: 0.7, delay: (idx % 9) * 0.08 }}
                     whileHover={{ y: -6 }}
-                    onClick={() => setSelectedPrinter(printer)}
+                    onClick={() => handleSelectPrinter(printer)}
                     className="bg-white rounded-[1.75rem] md:rounded-[2.5rem] overflow-hidden shadow-sm border border-white hover:shadow-2xl transition-all duration-500 cursor-pointer group relative shimmer-border"
                   >
                     {/* Image */}

@@ -3,13 +3,17 @@ import { ArrowRight, Zap, BookOpen, ShoppingBag, Sparkles, Award, Users, FileChe
 import { Link } from "react-router-dom";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { useUserStore } from "@/store/useUserStore";
+import { showToast } from "@/lib/utils";
 
 // 新增：全局白皮书防盗预览弹窗组件
 function WhitepaperPreviewModal() {
   const [isOpen, setIsOpen] = useState(false);
 
   useEffect(() => {
-    const handleOpen = () => setIsOpen(true);
+    const handleOpen = () => {
+      setIsOpen(true);
+    };
     window.addEventListener('open-whitepaper-preview', handleOpen);
     return () => window.removeEventListener('open-whitepaper-preview', handleOpen);
   }, []);
@@ -190,7 +194,7 @@ function UptimeCounter({ startDate }: { startDate: string }) {
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: 0.8, duration: 0.5 }}
-      className="inline-flex items-center gap-3 px-5 py-2.5 rounded-full bg-white/40 backdrop-blur-md border border-white/60 shadow-sm mt-8 mx-auto"
+      className="inline-flex items-center gap-3 px-5 py-2.5 rounded-full bg-white/40 backdrop-blur-md border border-white/60 shadow-[0_0_15px_rgba(40,205,65,0.1)] hover:shadow-[0_0_25px_rgba(40,205,65,0.2)] transition-shadow mt-8 mx-auto cursor-default"
     >
       <div className="flex items-center gap-2">
         <div className="w-2 h-2 rounded-full bg-[#28cd41] animate-pulse shadow-[0_0_8px_rgba(40,205,65,0.8)]"></div>
@@ -251,9 +255,10 @@ export default function Home() {
           <motion.p variants={itemVariants} className="text-description mb-10 max-w-2xl mx-auto animate-fade-up delay-2">
             睿造打印工坊 (Rayzo print studio) 致力于中小学信息科技教育，提供全方位的教育资源包、原创IP周边与创作小工具，助力创意智造。
           </motion.p>
-          <motion.div variants={itemVariants} className="flex flex-col sm:flex-row justify-center items-center gap-4 md:gap-6 animate-fade-up delay-3">
-            <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} className="w-full sm:w-auto">
-              <Link to="/resources" className="btn-primary text-lg px-8 flex items-center justify-center gap-2 shadow-lg shadow-blue-500/20 ripple-target h-[56px] w-full sm:w-[220px]">
+          <motion.div variants={itemVariants} className="flex flex-col sm:flex-row justify-center items-center gap-4 md:gap-6 animate-fade-up delay-3 relative z-20">
+            <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} className="w-full sm:w-auto relative group">
+              <div className="absolute -inset-1 bg-gradient-to-r from-[#0071e3] to-[#28cd41] rounded-2xl blur opacity-20 group-hover:opacity-40 transition duration-500"></div>
+              <Link to="/resources" className="relative btn-primary text-lg px-8 flex items-center justify-center gap-2 shadow-lg shadow-blue-500/20 ripple-target h-[56px] w-full sm:w-[220px]">
                 <span>获取课件资源</span> <ArrowRight className="w-5 h-5" />
               </Link>
             </motion.div>
@@ -277,11 +282,12 @@ export default function Home() {
           className="mt-20 w-full max-w-5xl z-10"
         >
           <TiltCard>
-            <div className="w-full aspect-video rounded-[3rem] shadow-2xl overflow-hidden bg-white border border-white/50 shimmer-border group animate-float">
+            <div className="w-full aspect-video rounded-[3rem] shadow-2xl overflow-hidden bg-white border border-white/50 shimmer-border group animate-float relative">
+              <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 z-10 pointer-events-none"></div>
               <img 
                 src="https://core-normal.trae.ai/api/ide/v1/text_to_image?prompt=realistic+manga+illustration+teenage+students+creative+maker+studio+3D+design+computer+colorful+mascot+robot+clean+line+art+cell+shading+soft+lighting+simple+bright+background+no+brand+logo+no+watermark+authentic+anime+style&image_size=landscape_16_9" 
                 alt="Rayzo Print Studio"
-                className="w-full h-full object-cover transition-transform duration-[1.4s] group-hover:scale-105"
+                className="w-full h-full object-cover transition-transform duration-[2s] ease-out group-hover:scale-110"
               />
             </div>
           </TiltCard>
@@ -334,33 +340,32 @@ export default function Home() {
             transition={{ duration: 0.8 }}
           >
             <TiltCard>
-              <div className="relative rounded-[3rem] overflow-hidden bg-[#1d1d1f] flex flex-col md:flex-row items-stretch shadow-2xl group border border-[#333]">
+              <div className="relative rounded-[3rem] overflow-hidden bg-[#1d1d1f] flex flex-col items-center justify-center shadow-2xl group border border-[#333] text-center px-6 py-16 md:py-24">
                 {/* 炫酷的背景光晕 */}
                 <div className="absolute -left-32 -top-32 w-[500px] h-[500px] rounded-full bg-[#0071e3]/30 blur-[120px] pointer-events-none group-hover:bg-[#0071e3]/40 transition-colors duration-700"></div>
                 <div className="absolute -right-32 -bottom-32 w-[500px] h-[500px] rounded-full bg-[#28cd41]/20 blur-[120px] pointer-events-none group-hover:bg-[#28cd41]/30 transition-colors duration-700"></div>
                 
-                {/* 左侧内容区 */}
-                <div className="flex-[1.2] p-10 md:p-12 lg:p-16 relative z-10 flex flex-col justify-center items-start">
-                  <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/10 text-white text-sm font-bold uppercase tracking-wider mb-6 border border-white/20 backdrop-blur-md">
+                {/* 居中内容区 */}
+                <div className="relative z-10 flex flex-col justify-center items-center max-w-3xl mx-auto">
+                  <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/10 text-white text-sm font-bold uppercase tracking-wider mb-8 border border-white/20 backdrop-blur-md">
                     <Sparkles className="w-4 h-4 text-[#00c6ff]" />
                     重磅发布
                   </div>
-                  <h2 className="text-3xl md:text-4xl lg:text-[42px] font-bold text-white mb-6 leading-tight">
+                  <h2 className="text-3xl md:text-4xl lg:text-[46px] font-bold text-white mb-6 leading-tight">
                     2026 睿造白皮书 <br />
-                    <span className="bg-clip-text text-transparent bg-gradient-to-r from-[#00c6ff] to-[#28cd41]">重新定义创客设备选型</span>
+                    <span className="bg-clip-text text-transparent bg-gradient-to-r from-[#00c6ff] to-[#28cd41] mt-2 inline-block">重新定义创客设备选型</span>
                   </h2>
-                  <p className="text-[#e5e5ea] text-[17px] mb-10 max-w-xl leading-relaxed font-medium">
+                  <p className="text-[#e5e5ea] text-[17px] mb-12 leading-relaxed font-medium max-w-2xl">
                     从核心参数解析到真实场景评测，为您深度揭秘中小学信息科技实验室与创客空间的 3D 打印设备最优解。
                   </p>
                   
-                  {/* 预览按钮：移除 href 和 download，改为打开自定义弹窗进行预览 */}
+                  {/* 预览按钮 */}
                   <button 
                     onClick={() => {
-                      // 派发自定义事件，打开带有防盗水印的全局 PDF 预览
                       const event = new CustomEvent('open-whitepaper-preview');
                       window.dispatchEvent(event);
                     }}
-                    className="group/btn relative inline-flex items-center justify-center px-8 py-4 bg-white text-[#1d1d1f] font-bold rounded-full overflow-hidden transition-transform hover:scale-105 active:scale-95 shadow-[0_0_40px_rgba(255,255,255,0.2)] hover:shadow-[0_0_60px_rgba(255,255,255,0.4)] cursor-pointer border-none"
+                    className="group/btn relative inline-flex items-center justify-center px-10 py-4 bg-white text-[#1d1d1f] font-bold rounded-full overflow-hidden transition-transform hover:scale-105 active:scale-95 shadow-[0_0_40px_rgba(255,255,255,0.2)] hover:shadow-[0_0_60px_rgba(255,255,255,0.4)] cursor-pointer border-none"
                   >
                     <div className="absolute inset-0 bg-gradient-to-r from-[#00c6ff]/20 to-[#28cd41]/20 translate-x-[-100%] group-hover/btn:translate-x-0 transition-transform duration-500"></div>
                     <span className="relative flex items-center gap-3">
@@ -369,47 +374,6 @@ export default function Home() {
                       <ArrowRight className="w-5 h-5 transition-transform duration-300 group-hover/btn:translate-x-1" />
                     </span>
                   </button>
-                </div>
-
-                {/* 右侧配图区：直接使用原生 HTML/CSS 渲染白皮书封面 */}
-                <div className="flex-[0.8] min-h-[300px] relative z-0 overflow-hidden bg-[#151516] flex items-center justify-end md:pr-4">
-                  <div className="absolute inset-0 bg-gradient-to-l from-transparent via-transparent to-[#1d1d1f] z-10 md:block hidden w-1/3"></div>
-                  <div className="absolute inset-0 bg-gradient-to-t from-[#1d1d1f] to-transparent z-10 md:hidden block h-1/4"></div>
-                  
-                  {/* 白皮书 HTML 渲染容器 */}
-                  <div className="relative w-full h-full min-h-[360px] md:min-h-[420px] rounded-xl overflow-hidden scale-[0.85] md:scale-90 lg:scale-100 origin-right shadow-2xl transition-transform duration-[2s] group-hover:scale-[0.9] md:group-hover:scale-95 lg:group-hover:scale-105 translate-x-4">
-                    <div className="absolute inset-0 bg-gradient-to-br from-[#0f2c5c] via-[#14406e] to-[#1a5fb4] flex flex-col text-white">
-                      {/* 装饰圆环 */}
-                      <div className="absolute border-2 border-white/10 rounded-full w-[160px] h-[160px] -top-[50px] -right-[40px]"></div>
-                      <div className="absolute border-2 border-white/10 rounded-full w-[100px] h-[100px] top-[30px] right-[30px]"></div>
-                      <div className="absolute border-2 border-white/10 rounded-full w-[180px] h-[180px] -bottom-[70px] -left-[60px]"></div>
-                      
-                      {/* 右上角 Logo 与 Slogan (防盗版/品牌标识) */}
-                      <div className="absolute top-6 right-8 z-20 flex flex-col items-end">
-                        <div className="text-white/80 text-[10px] tracking-[4px] font-bold mb-1" style={{ textShadow: "0 2px 4px rgba(0,0,0,0.5)" }}>
-                          RAYZO PRINT STUDIO
-                        </div>
-                        <div className="px-2 py-0.5 rounded bg-white/10 backdrop-blur-md border border-white/20 text-[#a9cdf5] text-[8px] tracking-wider">
-                          让科创教育触手可及
-                        </div>
-                      </div>
-
-                      <div className="flex-1 flex flex-col justify-center px-8 lg:px-10 z-10">
-                        <div className="tracking-[3px] text-xs text-[#a9cdf5] font-bold mb-4">消费级 3D 打印 · 选购白皮书（2026 版）</div>
-                        <h3 className="text-2xl lg:text-3xl text-white leading-snug font-bold mb-8">愿你早日打出<br/>自己满意的第一层</h3>
-                        <div className="text-sm lg:text-base leading-relaxed text-[#dcebfb] space-y-2 mb-8">
-                          <p><b className="text-white">定用途</b> —— 先想清楚你要打什么，再让配置对号入座</p>
-                          <p><b className="text-white">选对路</b> —— 实用件选 FDM，手办模型选光固化</p>
-                          <p><b className="text-white">控预算</b> —— 机器预算 × 1.3~1.5，才是真实总预算</p>
-                          <p><b className="text-white">重体验</b> —— 自动校准与好生态，比纸面参数更值钱</p>
-                        </div>
-                        <div className="text-sm text-[#a9cdf5] tracking-[1px]">—— 选机的答案，藏在你第一次按下“开始打印”之前 ——</div>
-                      </div>
-                      <div className="py-4 px-8 lg:px-10 text-[10px] text-[#9dbfe6] border-t border-white/20 z-10">
-                        本报告基于公开市场资料整理，仅供选购参考，与文中提及品牌无利益关联 | WORKBUDDY
-                      </div>
-                    </div>
-                  </div>
                 </div>
               </div>
             </TiltCard>

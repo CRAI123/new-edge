@@ -5,6 +5,7 @@ import { User, Mail, Lock, ArrowRight, BookOpen, GraduationCap, Building2, X, Sh
 import { supabase } from "@/lib/supabase";
 import { useUserStore } from "@/store/useUserStore";
 import { showToast } from "@/lib/utils";
+import { Turnstile } from '@marsidev/react-turnstile';
 
 export default function Register() {
   const { setUser } = useUserStore();
@@ -18,6 +19,7 @@ export default function Register() {
   const [isVerifying, setIsVerifying] = useState(false);
   const [otp, setOtp] = useState<string[]>(new Array(8).fill(""));
   const [agreePolicy, setAgreePolicy] = useState(false);
+  const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
   const navigate = useNavigate();
 
@@ -81,11 +83,15 @@ export default function Register() {
       setError("请先阅读并同意服务条款与隐私政策");
       return;
     }
+    if (!turnstileToken) {
+      setError("请先完成人机验证");
+      return;
+    }
     setLoading(true);
     setError(null);
 
     try {
-      const { error } = await supabase.auth.signUp({
+      const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
@@ -99,8 +105,9 @@ export default function Register() {
 
       if (error) throw error;
       
-      // Instead of alert, show the OTP modal
+      // Since email confirmation is required, show the OTP modal
       setIsVerifying(true);
+      showToast("info", "已发送验证码到您的邮箱，请查收");
     } catch (err: any) {
       setError(err.message || "注册失败，请稍后重试");
     } finally {
@@ -156,7 +163,8 @@ export default function Register() {
             level: profile.level,
             loginCount: profile.login_count,
             browseCount: profile.browse_count,
-            downloadCount: profile.download_count
+            downloadCount: profile.download_count,
+            require_password_change: profile.require_password_change
           });
         }
       }
@@ -275,6 +283,25 @@ export default function Register() {
                 placeholder="至少 8 位字符"
               />
             </div>
+          </div>
+
+          {/* Turnstile Widget */}
+          <div className="flex justify-center w-full overflow-hidden rounded-xl bg-[#f5f5f7] border border-transparent hover:border-[#d2d2d7] transition-colors mt-2">
+            <Turnstile
+              siteKey="0x4AAAAAAFEV-PHDZX-ZmnQP"
+              onSuccess={(token) => setTurnstileToken(token)}
+              options={{
+                theme: "light",
+                language: "zh-cn"
+              }}
+              style={{
+                width: '100%',
+                display: 'flex',
+                justifyContent: 'center',
+                transform: 'scale(1.02)',
+                transformOrigin: 'center center'
+              }}
+            />
           </div>
 
           <div>

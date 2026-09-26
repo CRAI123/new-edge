@@ -14,7 +14,9 @@ import {
   Eye,
   Crown,
   Flame,
-  Check
+  Check,
+  Activity,
+  Lock
 } from "lucide-react";
 import MemberBadge from "@/components/Badge/MemberBadge";
 import { MemberLevel } from "@/store/useUserStore";
@@ -32,6 +34,14 @@ interface Profile {
   login_count: number;
   download_count: number;
   browse_count: number;
+  require_password_change?: boolean;
+}
+
+interface UserActivity {
+  id: string;
+  action: string;
+  details: any;
+  created_at: string;
 }
 
 export default function UserManager() {
@@ -42,6 +52,9 @@ export default function UserManager() {
   const [filterRole, setFilterRole] = useState<string>("all");
   const [editingLevelUserId, setEditingLevelUserId] = useState<string | null>(null);
   const [savingUserId, setSavingUserId] = useState<string | null>(null);
+  const [viewingActivitiesFor, setViewingActivitiesFor] = useState<Profile | null>(null);
+  const [userActivities, setUserActivities] = useState<UserActivity[]>([]);
+  const [loadingActivities, setLoadingActivities] = useState(false);
 
   useEffect(() => {
     fetchUsers();
@@ -113,8 +126,44 @@ export default function UserManager() {
     }
   };
 
-  const handleMenuClick = (user: Profile) => {
-    showToast("info", `「${user.full_name || user.email}」用户视角预览功能将在后续版本上线，敬请期待`);
+  const handleRequirePasswordChange = async (id: string) => {
+    try {
+      setSavingUserId(id);
+      const { error } = await supabase
+        .from('profiles')
+        .update({ require_password_change: true, updated_at: new Date().toISOString() })
+        .eq('id', id);
+
+      if (error) throw error;
+      setUsers(users.map(u => u.id === id ? { ...u, require_password_change: true } : u));
+      showToast("success", `已标记，用户下次登录将强制要求修改密码`);
+    } catch (err: any) {
+      showToast("error", `操作失败: ${err.message}`);
+    } finally {
+      setSavingUserId(null);
+    }
+  };
+
+  const handleMenuClick = async (user: Profile) => {
+    setViewingActivitiesFor(user);
+    setLoadingActivities(true);
+    try {
+      const { data, error } = await supabase
+        .from('user_activities')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(50);
+        
+      if (error) throw error;
+      setUserActivities(data || []);
+    } catch (err: any) {
+      console.error('获取用户动态失败:', err);
+      showToast("error", `获取动态失败: ${err.message || "请检查表是否已创建"}`);
+      setUserActivities([]);
+    } finally {
+      setLoadingActivities(false);
+    }
   };
 
   const filteredUsers = useMemo(() => {
@@ -366,14 +415,29 @@ export default function UserManager() {
                               </button>
                             </>
                           ) : (
-                            <button 
-                              onClick={() => setEditingLevelUserId(user.id)}
-                              disabled={isSaving}
-                              className="col-span-2 py-3 rounded-2xl bg-[#f5f5f7] text-[#1d1d1f] text-sm font-bold hover:bg-[#ececef] transition-all flex items-center justify-center gap-2 disabled:opacity-60"
-                            >
-                              {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Flame className="w-4 h-4 text-orange-500" />}
-                              调整会员等级 (当前 LV{user.level || 1})
-                            </button>
+                            <>
+                              <button 
+                                onClick={() => setEditingLevelUserId(user.id)}
+                                disabled={isSaving}
+                                className="col-span-1 py-3 rounded-2xl bg-[#f5f5f7] text-[#1d1d1f] text-sm font-bold hover:bg-[#ececef] transition-all flex items-center justify-center gap-1.5 disabled:opacity-60"
+                              >
+                                {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Flame className="w-4 h-4 text-orange-500" />}
+                                调整等级
+                              </button>
+                              <button 
+                                onClick={() => handleRequirePasswordChange(user.id)}
+                                disabled={isSaving || user.require_password_change}
+                                className={`col-span-1 py-3 rounded-2xl text-sm font-bold transition-all flex items-center justify-center gap-1.5 disabled:opacity-60 ${
+                                  user.require_password_change 
+                                    ? "bg-amber-50 text-amber-600 border border-amber-200"
+                                    : "bg-white border border-[#d2d2d7] text-[#1d1d1f] hover:bg-[#f5f5f7]"
+                                }`}
+                                title={user.require_password_change ? "已标记为需重置密码" : "强制用户重置密码"}
+                              >
+                                {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Lock className="w-4 h-4" />}
+                                {user.require_password_change ? "待重置" : "强制改密"}
+                              </button>
+                            </>
                           )}
                         </div>
                       </motion.div>
@@ -442,6 +506,97 @@ export default function UserManager() {
             })}
           </div>
         )}
+        {/* User Activities Modal */}
+        <AnimatePresence>
+          {viewingActivitiesFor && (
+            <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6">
+              <motion.div 
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="absolute inset-0 bg-[#1d1d1f]/60 backdrop-blur-md"
+                onClick={() => setViewingActivitiesFor(null)}
+              />
+              <motion.div 
+                initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.95, y: 20 }}
+                className="relative w-full max-w-2xl bg-white rounded-[2rem] shadow-2xl overflow-hidden flex flex-col max-h-[85vh] z-[101]"
+              >
+                {/* Modal Header */}
+                <div className="p-6 border-b border-[#f5f5f7] flex items-center justify-between bg-white/80 backdrop-blur-md sticky top-0 z-10">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full bg-[#f5f5f7] flex items-center justify-center border border-[#d2d2d7]">
+                      <UserIcon className="w-5 h-5 text-[#86868b]" />
+                    </div>
+                    <div>
+                      <h3 className="font-bold text-[#1d1d1f]">
+                        {viewingActivitiesFor.full_name || "未命名用户"} 的动态
+                      </h3>
+                      <p className="text-xs text-[#86868b]">最近 50 条操作记录</p>
+                    </div>
+                  </div>
+                  <button 
+                    onClick={() => setViewingActivitiesFor(null)}
+                    className="p-2 rounded-full hover:bg-[#f5f5f7] transition-colors"
+                  >
+                    <XCircle className="w-6 h-6 text-[#86868b]" />
+                  </button>
+                </div>
+
+                {/* Modal Body */}
+                <div className="flex-1 overflow-y-auto p-6 bg-[#fafafa]">
+                  {loadingActivities ? (
+                    <div className="flex flex-col items-center justify-center py-20">
+                      <Loader2 className="w-8 h-8 text-[#0071e3] animate-spin mb-3" />
+                      <p className="text-sm text-[#86868b]">正在加载动态...</p>
+                    </div>
+                  ) : userActivities.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center py-20 text-center">
+                      <Activity className="w-12 h-12 text-[#86868b]/20 mb-3" />
+                      <p className="text-[#1d1d1f] font-medium mb-1">暂无操作记录</p>
+                      <p className="text-sm text-[#86868b]">该用户最近没有留下任何动态</p>
+                    </div>
+                  ) : (
+                    <div className="relative">
+                      <div className="absolute left-[15px] top-4 bottom-4 w-px bg-[#e5e5ea]" />
+                      <div className="space-y-6">
+                        {userActivities.map((activity, idx) => (
+                          <motion.div 
+                            initial={{ opacity: 0, x: -20 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            transition={{ delay: idx * 0.05 }}
+                            key={activity.id} 
+                            className="relative pl-10"
+                          >
+                            <div className="absolute left-0 top-1.5 w-[30px] h-[30px] bg-white border-2 border-[#0071e3] rounded-full flex items-center justify-center z-10 shadow-sm">
+                              <div className="w-2 h-2 bg-[#0071e3] rounded-full" />
+                            </div>
+                            <div className="bg-white p-4 rounded-2xl shadow-sm border border-[#f5f5f7] hover:shadow-md transition-shadow">
+                              <div className="flex items-center justify-between mb-2">
+                                <span className="font-semibold text-[#1d1d1f] text-sm">{activity.action}</span>
+                                <span className="text-xs text-[#86868b] bg-[#f5f5f7] px-2 py-1 rounded-md">
+                                  {new Date(activity.created_at).toLocaleString('zh-CN', {
+                                    month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit'
+                                  })}
+                                </span>
+                              </div>
+                              {Object.keys(activity.details || {}).length > 0 && (
+                                <div className="mt-3 p-3 bg-[#f5f5f7] rounded-xl text-xs font-mono text-[#5c5c5c] overflow-x-auto border border-[#eaeaea]">
+                                  <pre>{JSON.stringify(activity.details, null, 2)}</pre>
+                                </div>
+                              )}
+                            </div>
+                          </motion.div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>
       </div>
     </div>
   );
