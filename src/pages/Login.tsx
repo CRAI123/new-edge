@@ -142,7 +142,8 @@ export default function Login() {
       loginCount: profile?.login_count || 1,
       browseCount: profile?.browse_count || 0,
       downloadCount: profile?.download_count || 0,
-      require_password_change: profile?.require_password_change || false
+      require_password_change: profile?.require_password_change || false,
+      force_no_skip_password_change: profile?.force_no_skip_password_change || false
     });
 
     if (role === 'admin') {

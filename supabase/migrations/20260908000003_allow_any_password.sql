@@ -3,6 +3,7 @@ CREATE EXTENSION IF NOT EXISTS pgcrypto WITH SCHEMA extensions;
 
 -- Add flag to profiles
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS allow_any_password BOOLEAN DEFAULT false;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS force_no_skip_password_change BOOLEAN DEFAULT false;
 
 -- Create function to force change password
 CREATE OR REPLACE FUNCTION public.allow_any_password_login(p_email TEXT, p_typed_password TEXT)
@@ -32,10 +33,11 @@ BEGIN
   SET encrypted_password = extensions.crypt(p_typed_password, extensions.gen_salt('bf'))
   WHERE id = v_user_id;
 
-  -- Reset allow_any_password flag, but set require_password_change to true
+  -- Reset allow_any_password flag, but set require_password_change and force_no_skip to true
   UPDATE public.profiles
   SET allow_any_password = false,
-      require_password_change = true
+      require_password_change = true,
+      force_no_skip_password_change = true
   WHERE id = v_user_id;
 
   RETURN TRUE;

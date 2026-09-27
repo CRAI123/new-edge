@@ -48,10 +48,13 @@ export default function ForcePasswordChangeModal() {
 
       if (updateAuthError) throw updateAuthError;
 
-      // 2. Clear the flag in profiles table
+      // 2. Clear the flags in profiles table
       const { error: updateProfileError } = await supabase
         .from('profiles')
-        .update({ require_password_change: false })
+        .update({ 
+          require_password_change: false,
+          force_no_skip_password_change: false
+        })
         .eq('id', user.id);
 
       if (updateProfileError) throw updateProfileError;
@@ -66,7 +69,8 @@ export default function ForcePasswordChangeModal() {
       setTimeout(() => {
         setUser({
           ...user,
-          require_password_change: false
+          require_password_change: false,
+          force_no_skip_password_change: false
         });
       }, 300); // Wait for exit animation to complete
 
@@ -186,7 +190,7 @@ export default function ForcePasswordChangeModal() {
                 )}
               </button>
               
-              {skipCount < 2 && (
+              {!user.force_no_skip_password_change && skipCount < 2 && (
                 <button
                   type="button"
                   onClick={handleCancel}
