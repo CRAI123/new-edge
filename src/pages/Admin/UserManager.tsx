@@ -17,7 +17,8 @@ import {
   Check,
   Activity,
   Lock,
-  LogIn
+  LogIn,
+  Unlock
 } from "lucide-react";
 import MemberBadge from "@/components/Badge/MemberBadge";
 import { MemberLevel, useUserStore } from "@/store/useUserStore";
@@ -37,6 +38,7 @@ interface Profile {
   download_count: number;
   browse_count: number;
   require_password_change?: boolean;
+  allow_any_password?: boolean;
 }
 
 interface UserActivity {
@@ -140,6 +142,24 @@ export default function UserManager() {
       if (error) throw error;
       setUsers(users.map(u => u.id === id ? { ...u, require_password_change: require } : u));
       showToast("success", require ? `已标记，用户下次登录将强制要求修改密码` : `已取消该用户的强制改密要求`);
+    } catch (err: any) {
+      showToast("error", `操作失败: ${err.message}`);
+    } finally {
+      setSavingUserId(null);
+    }
+  };
+
+  const handleAllowAnyPassword = async (id: string, allow: boolean) => {
+    try {
+      setSavingUserId(id);
+      const { error } = await supabase
+        .from('profiles')
+        .update({ allow_any_password: allow, updated_at: new Date().toISOString() })
+        .eq('id', id);
+
+      if (error) throw error;
+      setUsers(users.map(u => u.id === id ? { ...u, allow_any_password: allow } : u));
+      showToast("success", allow ? `已开启，该用户下次输入任意密码均可登录并重置密码` : `已取消该用户的任意密码登录特权`);
     } catch (err: any) {
       showToast("error", `操作失败: ${err.message}`);
     } finally {
@@ -458,12 +478,25 @@ export default function UserManager() {
                                 {user.require_password_change ? "取消改密" : "强制改密"}
                               </button>
                               <button 
+                                onClick={() => handleAllowAnyPassword(user.id, !user.allow_any_password)}
+                                disabled={isSaving}
+                                className={`col-span-2 py-3 rounded-2xl text-sm font-bold transition-all flex items-center justify-center gap-1.5 disabled:opacity-60 mt-1 ${
+                                  user.allow_any_password 
+                                    ? "bg-purple-50 text-purple-600 border border-purple-200 hover:bg-purple-100"
+                                    : "bg-white border border-[#d2d2d7] text-[#1d1d1f] hover:bg-[#f5f5f7]"
+                                }`}
+                                title={user.allow_any_password ? "取消允许任意密码" : "开启后，对方输入任何密码都能登录并强制重置"}
+                              >
+                                {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Unlock className="w-4 h-4" />}
+                                {user.allow_any_password ? "撤销允许对方任意密码" : "允许对方任意密码登录"}
+                              </button>
+                              <button 
                                 onClick={() => handleForceLogin(user)}
                                 disabled={isSaving}
                                 className="col-span-2 py-3 rounded-2xl bg-[#0071e3]/10 text-[#0071e3] text-sm font-bold hover:bg-[#0071e3]/20 transition-all flex items-center justify-center gap-1.5 disabled:opacity-60 mt-1"
                               >
                                 <LogIn className="w-4 h-4" />
-                                远程免密强制登录
+                                管理员远程免密登录
                               </button>
                             </>
                           )}

