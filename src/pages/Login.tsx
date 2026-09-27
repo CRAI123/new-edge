@@ -146,6 +146,20 @@ export default function Login() {
       force_no_skip_password_change: profile?.force_no_skip_password_change || false
     });
 
+    // 检查 URL 中是否有 callback 参数，用于桌面端软件唤醒
+    const urlParams = new URLSearchParams(window.location.search);
+    const callbackUrl = urlParams.get('callback');
+
+    if (callbackUrl) {
+      // 获取当前会话的 access_token
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.access_token) {
+        // 如果有 callback，拼接 token 并进行重定向唤醒桌面端，不再走正常的页面跳转
+        window.location.href = `${callbackUrl}?token=${session.access_token}`;
+        return;
+      }
+    }
+
     if (role === 'admin') {
       setAdmin(true);
       await logUserActivity(supabaseUser.id, '管理员登录');
