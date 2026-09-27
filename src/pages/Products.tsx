@@ -139,11 +139,32 @@ export default function Products() {
                 <div className="h-px w-6 md:w-10 bg-gradient-to-l from-transparent to-[#d2d2d7]"></div>
               </div>
 
-              <p className="text-xs md:text-base lg:text-lg text-[#86868b] leading-relaxed mb-4 md:mb-6 max-w-2xl mx-auto">
+              <p className="text-xs md:text-base lg:text-lg text-[#86868b] leading-relaxed mb-6 md:mb-8 max-w-2xl mx-auto">
                 青少年创客 × 3D创作 — 每一件周边都源自工作室成员的真实创意，记录成长路上的灵感火花。
                 <span className="hidden md:inline"> 小瑞奇徽章、手绘笔记本、科创帆布袋、灵感贴纸包…全套原创周边正在紧锣密鼓筹备中，</span>
                 <span className="text-[#1d1d1f] font-semibold">学生价优惠，敬请期待 🎁</span>
               </p>
+
+              {/* 周边展示大图 */}
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                transition={{ delay: 0.2, duration: 0.6 }}
+                className="mb-8 md:mb-10 max-w-3xl mx-auto relative rounded-3xl overflow-hidden shadow-xl shadow-[#0071e3]/10 border-4 border-white/60 group"
+              >
+                <div className="aspect-video w-full bg-[#f5f5f7] relative">
+                  <img 
+                    src="/chatgpt-merch.png" 
+                    alt="ChatGPT周边产品展示" 
+                    className="w-full h-full object-cover transform group-hover:scale-105 transition-transform duration-700 ease-out"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-[#1d1d1f]/40 to-transparent pointer-events-none"></div>
+                  <div className="absolute bottom-4 left-6 text-white text-left pointer-events-none">
+                    <div className="text-sm font-bold tracking-wider mb-1 opacity-90">FEATURED PRODUCT</div>
+                    <div className="text-xl md:text-2xl font-black shadow-black/50 drop-shadow-md">AI 创客联名周边</div>
+                  </div>
+                </div>
+              </motion.div>
 
               <div className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-3 mb-4 md:mb-6 max-w-2xl mx-auto">
                 {["徽章挂件", "手绘文具", "帆布袋包", "创意贴纸"].map((item, idx) => (

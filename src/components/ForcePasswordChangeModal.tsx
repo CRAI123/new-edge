@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
 import { showToast } from "@/lib/utils";
 import { useUserStore } from "@/store/useUserStore";
@@ -13,6 +13,15 @@ export default function ForcePasswordChangeModal() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [isVisible, setIsVisible] = useState(true);
+  const [skipCount, setSkipCount] = useState(0);
+
+  useEffect(() => {
+    if (user) {
+      // 每次弹窗加载时，从 localStorage 中读取该用户的跳过次数
+      const count = parseInt(localStorage.getItem(`pwd_skip_${user.id}`) || '0', 10);
+      setSkipCount(count);
+    }
+  }, [user]);
 
   if (!user) return null;
 
@@ -47,6 +56,9 @@ export default function ForcePasswordChangeModal() {
 
       if (updateProfileError) throw updateProfileError;
 
+      // 清除本地跳过次数记录
+      localStorage.removeItem(`pwd_skip_${user.id}`);
+
       showToast("success", "密码修改成功，请牢记您的新密码！");
       
       // Trigger exit animation before removing from DOM
@@ -64,6 +76,25 @@ export default function ForcePasswordChangeModal() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleCancel = () => {
+    const newCount = skipCount + 1;
+    localStorage.setItem(`pwd_skip_${user.id}`, newCount.toString());
+
+    setIsVisible(false);
+    setTimeout(() => {
+      // 本地状态设置为 false 只是为了本次会话不显示，由于数据库中仍为 true，下次登录依旧会弹出
+      setUser({
+        ...user,
+        require_password_change: false
+      });
+      if (newCount === 1) {
+        showToast("info", "您已跳过修改密码，仅剩 1 次跳过机会");
+      } else if (newCount >= 2) {
+        showToast("info", "您已跳过 2 次，下次登录将强制要求修改");
+      }
+    }, 300);
   };
 
   return createPortal(
@@ -142,17 +173,30 @@ export default function ForcePasswordChangeModal() {
               </div>
             </div>
 
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full btn-primary py-3.5 rounded-xl flex items-center justify-center gap-2 mt-4"
-            >
-              {loading ? (
-                <><Loader2 className="w-5 h-5 animate-spin" /> 提交中...</>
-              ) : (
-                "确认修改并进入系统"
+            <div className="flex flex-col gap-3 mt-4">
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full btn-primary py-3.5 rounded-xl flex items-center justify-center gap-2"
+              >
+                {loading ? (
+                  <><Loader2 className="w-5 h-5 animate-spin" /> 提交中...</>
+                ) : (
+                  "确认修改并进入系统"
+                )}
+              </button>
+              
+              {skipCount < 2 && (
+                <button
+                  type="button"
+                  onClick={handleCancel}
+                  disabled={loading}
+                  className="w-full py-3.5 rounded-xl flex items-center justify-center gap-2 bg-[#f5f5f7] text-[#1d1d1f] hover:bg-[#ececef] font-semibold transition-all disabled:opacity-60"
+                >
+                  暂不修改，跳过 ({2 - skipCount} 次机会)
+                </button>
               )}
-            </button>
+            </div>
             </form>
           </motion.div>
         </div>

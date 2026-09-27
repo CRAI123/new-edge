@@ -16,12 +16,14 @@ import {
   Flame,
   Check,
   Activity,
-  Lock
+  Lock,
+  LogIn
 } from "lucide-react";
 import MemberBadge from "@/components/Badge/MemberBadge";
-import { MemberLevel } from "@/store/useUserStore";
+import { MemberLevel, useUserStore } from "@/store/useUserStore";
 import { supabase } from "@/lib/supabase";
 import { showToast } from "@/lib/utils";
+import { useNavigate } from "react-router-dom";
 
 interface Profile {
   id: string;
@@ -45,6 +47,7 @@ interface UserActivity {
 }
 
 export default function UserManager() {
+  const navigate = useNavigate();
   const [users, setUsers] = useState<Profile[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -126,22 +129,39 @@ export default function UserManager() {
     }
   };
 
-  const handleRequirePasswordChange = async (id: string) => {
+  const handleRequirePasswordChange = async (id: string, require: boolean) => {
     try {
       setSavingUserId(id);
       const { error } = await supabase
         .from('profiles')
-        .update({ require_password_change: true, updated_at: new Date().toISOString() })
+        .update({ require_password_change: require, updated_at: new Date().toISOString() })
         .eq('id', id);
 
       if (error) throw error;
-      setUsers(users.map(u => u.id === id ? { ...u, require_password_change: true } : u));
-      showToast("success", `已标记，用户下次登录将强制要求修改密码`);
+      setUsers(users.map(u => u.id === id ? { ...u, require_password_change: require } : u));
+      showToast("success", require ? `已标记，用户下次登录将强制要求修改密码` : `已取消该用户的强制改密要求`);
     } catch (err: any) {
       showToast("error", `操作失败: ${err.message}`);
     } finally {
       setSavingUserId(null);
     }
+  };
+
+  const handleForceLogin = (user: Profile) => {
+    const profileToLogin = {
+      id: user.id,
+      email: user.email || '',
+      fullName: user.full_name || '未命名',
+      role: (user.role || 'individual') as any,
+      level: (user.level || 1) as MemberLevel,
+      loginCount: user.login_count || 0,
+      browseCount: user.browse_count || 0,
+      downloadCount: user.download_count || 0,
+      require_password_change: user.require_password_change
+    };
+    useUserStore.getState().setUser(profileToLogin);
+    showToast("success", `已强制登录为 ${user.full_name || user.email}`);
+    navigate('/profile');
   };
 
   const handleMenuClick = async (user: Profile) => {
@@ -425,17 +445,25 @@ export default function UserManager() {
                                 调整等级
                               </button>
                               <button 
-                                onClick={() => handleRequirePasswordChange(user.id)}
-                                disabled={isSaving || user.require_password_change}
+                                onClick={() => handleRequirePasswordChange(user.id, !user.require_password_change)}
+                                disabled={isSaving}
                                 className={`col-span-1 py-3 rounded-2xl text-sm font-bold transition-all flex items-center justify-center gap-1.5 disabled:opacity-60 ${
                                   user.require_password_change 
-                                    ? "bg-amber-50 text-amber-600 border border-amber-200"
+                                    ? "bg-amber-50 text-amber-600 border border-amber-200 hover:bg-amber-100"
                                     : "bg-white border border-[#d2d2d7] text-[#1d1d1f] hover:bg-[#f5f5f7]"
                                 }`}
-                                title={user.require_password_change ? "已标记为需重置密码" : "强制用户重置密码"}
+                                title={user.require_password_change ? "点击取消强制重置密码" : "强制用户重置密码"}
                               >
-                                {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Lock className="w-4 h-4" />}
-                                {user.require_password_change ? "待重置" : "强制改密"}
+                                {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : user.require_password_change ? <XCircle className="w-4 h-4" /> : <Lock className="w-4 h-4" />}
+                                {user.require_password_change ? "取消改密" : "强制改密"}
+                              </button>
+                              <button 
+                                onClick={() => handleForceLogin(user)}
+                                disabled={isSaving}
+                                className="col-span-2 py-3 rounded-2xl bg-[#0071e3]/10 text-[#0071e3] text-sm font-bold hover:bg-[#0071e3]/20 transition-all flex items-center justify-center gap-1.5 disabled:opacity-60 mt-1"
+                              >
+                                <LogIn className="w-4 h-4" />
+                                远程免密强制登录
                               </button>
                             </>
                           )}
