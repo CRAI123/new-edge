@@ -294,14 +294,13 @@ export default function Login() {
               onSuccess={(token) => setTurnstileToken(token)}
               options={{
                 theme: "light",
-                language: "zh-cn"
+                language: "zh-cn",
+                size: "flexible"
               }}
               style={{
                 width: '100%',
                 display: 'flex',
                 justifyContent: 'center',
-                transform: 'scale(1.02)', // 微微放大以填满容器
-                transformOrigin: 'center center'
               }}
             />
           </div>

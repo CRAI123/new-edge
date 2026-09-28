@@ -292,14 +292,13 @@ export default function Register() {
               onSuccess={(token) => setTurnstileToken(token)}
               options={{
                 theme: "light",
-                language: "zh-cn"
+                language: "zh-cn",
+                size: "flexible"
               }}
               style={{
                 width: '100%',
                 display: 'flex',
                 justifyContent: 'center',
-                transform: 'scale(1.02)',
-                transformOrigin: 'center center'
               }}
             />
           </div>
