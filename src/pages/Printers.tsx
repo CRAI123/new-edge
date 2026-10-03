@@ -253,6 +253,12 @@ interface Printer {
   updated_at?: string;
 }
 
+// Fallback image generator function
+const getFallbackImage = (brand: string, model: string) => {
+  const seed = encodeURIComponent(`${brand}-${model}`);
+  return `https://api.dicebear.com/7.x/shapes/svg?seed=${seed}&backgroundColor=f5f5f7`;
+};
+
 export default function Printers() {
   const [printers, setPrinters] = useState<Printer[]>([]);
   const [loading, setLoading] = useState(true);
@@ -446,315 +452,186 @@ export default function Printers() {
         </div>
       </section>
 
-      {/* Printer Cards Grid */}
-      <section className="py-8 md:py-10 px-4 md:px-8 lg:px-16 relative">
-        <div className="max-w-7xl mx-auto relative z-10">
-          {loading ? (
-            <div className="flex flex-col items-center justify-center py-24 md:py-32 bg-white rounded-[2rem] md:rounded-[2.5rem] shadow-sm">
-              <Loader2 className="w-8 h-8 md:w-10 md:h-10 text-[#0071e3] animate-spin mb-3 md:mb-4" />
-              <p className="text-[#86868b] text-sm md:text-base">正在加载设备数据...</p>
+      {/* Main Content Layout - Two Columns on large screens */}
+      <div className="max-w-[1600px] mx-auto px-4 md:px-8 lg:px-12 pb-24">
+        <div className="flex flex-col xl:flex-row gap-8 lg:gap-12">
+          
+          {/* Left Column: Printers List (Takes up 65% on XL screens) */}
+          <div className="w-full xl:w-[65%] flex-shrink-0">
+            {/* Filter Buttons */}
+            <div className="flex flex-wrap gap-2 md:gap-3 mb-8 md:mb-12 sticky top-20 z-30 bg-[#f5f5f7]/80 backdrop-blur-md py-4 -mx-4 px-4 md:mx-0 md:px-0 rounded-2xl">
+              {['全部'].map((cat) => (
+                <button
+                  key={cat}
+                  onClick={() => setFilterBrand(cat === '全部' ? 'all' : cat)}
+                  className={`px-4 md:px-6 py-2 md:py-2.5 rounded-full text-sm md:text-base font-medium transition-all duration-300 ${
+                    filterBrand === 'all'
+                      ? 'bg-[#1d1d1f] text-white shadow-md scale-105'
+                      : 'bg-white text-[#86868b] hover:bg-gray-100 hover:text-[#1d1d1f]'
+                  }`}
+                >
+                  {cat}
+                </button>
+              ))}
             </div>
-          ) : error ? (
-            <div className="flex flex-col items-center justify-center py-20 md:py-24 bg-rose-50/50 border border-rose-100 rounded-[2rem] md:rounded-[2.5rem]">
-              <AlertTriangle className="w-10 h-10 md:w-12 md:h-12 text-rose-500 mb-3 md:mb-4" />
-              <h3 className="text-lg md:text-xl font-bold text-[#1d1d1f] mb-1 md:mb-2">加载失败</h3>
-              <p className="text-rose-600 mb-5 md:mb-6 max-w-md text-center px-4 text-sm md:text-base">{error}</p>
-              <button
-                onClick={fetchPublishedPrinters}
-                className="px-5 md:px-6 py-2.5 md:py-3 rounded-xl md:rounded-2xl bg-[#0071e3] text-white font-bold hover:bg-[#0077ed] transition-all ripple-target text-sm md:text-base"
-              >
-                重新加载
-              </button>
+
+            {/* Printers Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-2 2xl:grid-cols-3 gap-6 md:gap-8">
+              {filteredPrinters.map((printer, idx) => (
+                <motion.div
+                  key={printer.id}
+                  initial={{ opacity: 0, y: 30 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true, margin: "-50px" }}
+                  transition={{ duration: 0.6, delay: idx * 0.05 }}
+                  className="bg-white rounded-[2rem] p-5 md:p-6 shadow-sm hover:shadow-xl transition-all duration-300 group card-hover border border-gray-100/50 flex flex-col"
+                >
+                  <div className="aspect-[4/3] rounded-2xl overflow-hidden mb-5 md:mb-6 bg-[#f5f5f7] relative">
+                    <img
+                      src={printer.image || getFallbackImage(printer.brand, printer.title)}
+                      alt={printer.title}
+                      className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+                      onError={(e) => {
+                        const target = e.target as HTMLImageElement;
+                        target.src = getFallbackImage(printer.brand, printer.title);
+                      }}
+                    />
+                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors duration-300 flex items-center justify-center opacity-0 group-hover:opacity-100">
+                      <button 
+                        onClick={() => setSelectedPrinter(printer)}
+                        className="bg-white/90 backdrop-blur-md text-[#1d1d1f] px-6 py-2 rounded-full font-bold transform translate-y-4 group-hover:translate-y-0 transition-all duration-300"
+                      >
+                        查看详情
+                      </button>
+                    </div>
+                    {/* Tag badge */}
+                    <div className="absolute top-3 left-3 bg-white/90 backdrop-blur-md px-3 py-1 rounded-full text-xs font-bold text-[#1d1d1f] shadow-sm">
+                      {printer.brand}
+                    </div>
+                  </div>
+
+                  <div className="flex-1 flex flex-col">
+                    <div className="flex items-start justify-between gap-4 mb-3">
+                      <div>
+                        <p className="text-[#86868b] text-xs font-bold uppercase tracking-wider mb-1">{printer.brand}</p>
+                        <h3 className="text-xl md:text-2xl font-bold text-[#1d1d1f] leading-tight">{printer.title}</h3>
+                      </div>
+                      {printer.price && (
+                        <div className="bg-[#f5f5f7] px-3 py-1 rounded-full text-sm font-bold text-[#1d1d1f] whitespace-nowrap">
+                          {printer.price}
+                        </div>
+                      )}
+                    </div>
+
+                    <p className="text-[#86868b] text-sm line-clamp-2 mb-4 leading-relaxed flex-1">
+                      {printer.description}
+                    </p>
+
+                    <div className="flex flex-wrap gap-2 mt-auto">
+                      {printer.pros?.slice(0, 3).map((tag, i) => (
+                        <span key={i} className="text-xs bg-[#f5f5f7] text-[#1d1d1f] px-2.5 py-1 rounded-md font-medium">
+                          {tag}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                </motion.div>
+              ))}
             </div>
-          ) : filteredPrinters.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-24 md:py-32 bg-white rounded-[2rem] md:rounded-[2.5rem] shadow-sm border border-white">
-              <PrinterIcon className="w-12 h-12 md:w-16 md:h-16 text-[#86868b]/20 mb-4 md:mb-6" />
-              <h3 className="text-xl md:text-2xl font-bold text-[#1d1d1f] mb-1 md:mb-2">
-                {printers.length === 0 ? "暂无展示机型" : "没有匹配的设备"}
-              </h3>
-              <p className="text-[#86868b] text-center max-w-md px-4 text-sm md:text-base">
-                {printers.length === 0
-                  ? "后台管理员尚未发布任何机型数据，请稍后再来查看。"
-                  : "请尝试调整搜索关键词或品牌筛选条件。"}
-              </p>
-            </div>
-          ) : (
-            <>
-              <div className="flex items-center justify-between mb-5 md:mb-6 px-1 md:px-2">
-                <p className="text-xs md:text-sm text-[#86868b]">
-                  共展示 <span className="font-bold text-[#1d1d1f]">{filteredPrinters.length}</span> 款机型
-                  {printers.length !== filteredPrinters.length && (
-                    <span> （总 {printers.length} 款）</span>
-                  )}
-                </p>
+
+            {filteredPrinters.length === 0 && !loading && (
+              <div className="text-center py-20 bg-white rounded-[2rem] border border-gray-100">
+                <div className="w-20 h-20 bg-[#f5f5f7] rounded-full flex items-center justify-center mx-auto mb-4">
+                  <PrinterIcon className="w-10 h-10 text-[#86868b]" />
+                </div>
+                <h3 className="text-xl font-bold text-[#1d1d1f] mb-2">未找到设备</h3>
+                <p className="text-[#86868b]">该分类下暂无设备记录，请尝试其他分类。</p>
+              </div>
+            )}
+          </div>
+
+          {/* Right Column: Reference Tools (Takes up 35% on XL screens) */}
+          <div className="w-full xl:w-[35%] flex flex-col gap-8 xl:sticky xl:top-28 h-fit pb-12">
+            
+            {/* Quick Reference Table */}
+            <div className="bg-white rounded-[2.5rem] p-6 md:p-8 shadow-sm border border-gray-100">
+              <div className="flex items-center gap-3 mb-6">
+                <div className="w-10 h-10 rounded-xl bg-[#0071e3]/10 flex items-center justify-center text-[#0071e3]">
+                  <Table className="w-5 h-5" />
+                </div>
+                <div>
+                  <h2 className="text-xl font-bold text-[#1d1d1f]">切片参数速查</h2>
+                  <p className="text-xs text-[#86868b]">常用耗材参数区间参考</p>
+                </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
-                {filteredPrinters.map((printer, idx) => (
-                  <motion.div
-                    key={printer.id}
-                    initial={{ opacity: 0, y: 30 }}
-                    whileInView={{ opacity: 1, y: 0 }}
-                    viewport={{ once: true, margin: "-60px" }}
-                    transition={{ duration: 0.7, delay: (idx % 9) * 0.08 }}
-                    whileHover={{ y: -6 }}
-                    onClick={() => handleSelectPrinter(printer)}
-                    className="bg-white rounded-[1.75rem] md:rounded-[2.5rem] overflow-hidden shadow-sm border border-white hover:shadow-2xl transition-all duration-500 cursor-pointer group relative shimmer-border"
-                  >
-                    {/* Image */}
-                    <div className="aspect-video relative overflow-hidden bg-gradient-to-br from-[#f8fafc] to-[#f1f5f9] flex items-center justify-center border-b border-[#f5f5f7]">
-                      <div className="absolute inset-0 opacity-[0.03] pointer-events-none select-none overflow-hidden">
-                        <div className="absolute -top-4 -left-4 text-3xl md:text-5xl font-black rotate-12 whitespace-nowrap">
-                          {printer.brand}
+              <div className="flex flex-col gap-4">
+                {slicingParams.map((item) => (
+                  <div key={item.material} className="group rounded-2xl bg-[#f5f5f7] p-4 hover:bg-[#1d1d1f] transition-colors duration-300">
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center gap-2">
+                        <div className={`w-8 h-8 rounded-lg ${item.color} text-white flex items-center justify-center font-bold text-sm shadow-sm group-hover:shadow-md transition-shadow`}>
+                          {item.material.charAt(0)}
                         </div>
-                        <div className="absolute -bottom-6 -right-2 text-4xl md:text-6xl font-black -rotate-6 whitespace-nowrap gradient-text-dual opacity-20">
-                          {printer.title.split(" ")[0]}
-                        </div>
+                        <h3 className="font-bold text-[#1d1d1f] group-hover:text-white transition-colors">{item.material}</h3>
                       </div>
-
-                      {!imageLoadedMap[printer.id] && !imageErrorMap[printer.id] && (
-                        <div className="absolute inset-0 z-20 img-skeleton" />
-                      )}
-
-                      {printer.image &&
-                      !printer.image.includes("traeapi.us") &&
-                      !printer.image.includes("placeholder") &&
-                      !imageErrorMap[printer.id] ? (
-                        <img
-                          src={printer.image}
-                          alt={printer.title}
-                          loading="lazy"
-                          decoding="async"
-                          className={`w-full h-full object-cover z-10 transition-all duration-700 group-hover:scale-105 ${
-                            imageLoadedMap[printer.id] ? "opacity-100 blur-0" : "opacity-0 blur-sm"
-                          }`}
-                          onLoad={() => {
-                            setImageLoadedMap((prev) => ({ ...prev, [printer.id]: true }));
-                          }}
-                          onError={() => {
-                            setImageErrorMap((prev) => ({ ...prev, [printer.id]: true }));
-                            setImageLoadedMap((prev) => ({ ...prev, [printer.id]: true }));
-                          }}
-                        />
-                      ) : null}
-
-                      <div
-                        className={`brand-artistic-display absolute inset-0 flex-col items-center justify-center p-3 md:p-4 text-center z-0 transition-opacity duration-500 ${
-                          (printer.image &&
-                          !printer.image.includes("traeapi.us") &&
-                          !printer.image.includes("placeholder") &&
-                          !imageErrorMap[printer.id]) &&
-                          imageLoadedMap[printer.id]
-                            ? "hidden opacity-0"
-                            : "flex opacity-100"
-                        }`}
-                      >
-                        <div className="relative">
-                          <div style={{ position: 'absolute' }} className="-inset-6 md:-inset-8 rounded-full bg-gradient-to-br from-[#0071e3]/20 via-transparent to-[#28cd41]/20 blur-2xl animate-halo" />
-                          <span className="relative text-3xl md:text-4xl lg:text-5xl font-black tracking-tighter text-[#1d1d1f] select-none drop-shadow-sm">
-                            {printer.brand.split(" ")[0]}
-                          </span>
-                        </div>
-                        <div className="h-0.5 md:h-1 w-10 md:w-12 bg-gradient-to-r from-[#0071e3] to-[#28cd41] rounded-full my-2 md:my-3 shadow-md shadow-[#0071e3]/20" />
-                        <span className="text-[9px] md:text-[10px] font-bold tracking-[0.4em] text-[#86868b] uppercase">
-                          {printer.brand}
-                        </span>
-                        <div className="mt-2 md:mt-3 flex items-center gap-1 md:gap-1.5 px-2 md:px-3 py-0.5 md:py-1 rounded-full bg-white/60 backdrop-blur border border-white/80">
-                          <PrinterIcon className="w-2.5 h-2.5 md:w-3 md:h-3 text-[#0071e3]" />
-                          <span className="text-[9px] md:text-[10px] font-semibold text-[#86868b]">3D Printer</span>
-                        </div>
+                      <span className="text-[10px] bg-white/50 group-hover:bg-white/10 px-2 py-1 rounded-md text-[#86868b] group-hover:text-white/70 transition-colors">
+                        {item.enclosure}封闭
+                      </span>
+                    </div>
+                    
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="bg-white/60 group-hover:bg-white/5 rounded-xl p-2.5 transition-colors">
+                        <p className="text-[10px] text-[#86868b] group-hover:text-white/50 uppercase mb-0.5">喷嘴温度</p>
+                        <p className="font-semibold text-sm text-[#1d1d1f] group-hover:text-white">{item.nozzleTemp}</p>
                       </div>
-
-                      {/* Badges */}
-                      <div className="absolute top-3 md:top-4 left-3 md:left-4 flex gap-1.5 md:gap-2">
-                        <div className="px-2 md:px-3 py-0.5 md:py-1 rounded-full bg-white/90 backdrop-blur border border-white shadow-sm text-[9px] md:text-[10px] font-bold text-[#0071e3] uppercase tracking-wider">
-                          {printer.brand}
-                        </div>
-                      </div>
-
-                      <div className="absolute top-3 md:top-4 right-3 md:right-4 opacity-0 group-hover:opacity-100 transition-opacity duration-300 z-40">
-                        <div className="w-8 h-8 md:w-9 md:h-9 rounded-full bg-white/90 backdrop-blur shadow-sm flex items-center justify-center text-[#86868b] group-hover:text-[#0071e3] transition-colors">
-                          <Info className="w-3.5 h-3.5 md:w-4 md:h-4" />
-                        </div>
+                      <div className="bg-white/60 group-hover:bg-white/5 rounded-xl p-2.5 transition-colors">
+                        <p className="text-[10px] text-[#86868b] group-hover:text-white/50 uppercase mb-0.5">热床温度</p>
+                        <p className="font-semibold text-sm text-[#1d1d1f] group-hover:text-white">{item.bedTemp}</p>
                       </div>
                     </div>
-
-                    {/* Content */}
-                    <div className="p-4 md:p-6 lg:p-8">
-                      <div className="flex justify-between items-start mb-2 md:mb-3">
-                        <div className="flex items-center gap-1">
-                          {renderRating(printer.rating || 4.5)}
-                          <span className="text-xs md:text-sm font-bold text-[#1d1d1f] ml-1">
-                            {printer.rating?.toFixed(1) || "4.8"}
-                          </span>
-                        </div>
-                        <span className="text-base md:text-lg font-bold gradient-text-dual">
-                          {printer.price || "咨询官方"}
-                        </span>
-                      </div>
-                      <h3 className="text-base md:text-xl font-bold mb-1.5 md:mb-3 text-[#1d1d1f] line-clamp-1">
-                        {printer.title}
-                      </h3>
-                      <p className="text-[11px] md:text-sm text-[#86868b] line-clamp-2 leading-relaxed mb-3 md:mb-5">
-                        {printer.description || "暂无详细描述，点击卡片查看更多信息。"}
-                      </p>
-
-                      {/* Pros/Cons Preview */}
-                      {(printer.pros?.length > 0 || printer.cons?.length > 0) && (
-                        <div className="flex gap-1.5 md:gap-2 flex-wrap">
-                          {printer.pros?.slice(0, 1).map((pro, i) => (
-                            <span
-                              key={`pro-${i}`}
-                              className="inline-flex items-center gap-0.5 md:gap-1 px-2 md:px-3 py-0.5 md:py-1 rounded-full bg-[#28cd41]/10 text-[#28cd41] text-[10px] md:text-[11px] font-semibold"
-                            >
-                              <ThumbsUp className="w-2.5 h-2.5 md:w-3 md:h-3" />
-                              {pro.length > 8 ? pro.slice(0, 8) + "…" : pro}
-                            </span>
-                          ))}
-                          {printer.cons?.slice(0, 1).map((con, i) => (
-                            <span
-                              key={`con-${i}`}
-                              className="inline-flex items-center gap-0.5 md:gap-1 px-2 md:px-3 py-0.5 md:py-1 rounded-full bg-[#ef4444]/10 text-[#ef4444] text-[10px] md:text-[11px] font-semibold"
-                            >
-                              <ThumbsDown className="w-2.5 h-2.5 md:w-3 md:h-3" />
-                              {con.length > 8 ? con.slice(0, 8) + "…" : con}
-                            </span>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  </motion.div>
+                  </div>
                 ))}
               </div>
-            </>
-          )}
-        </div>
-      </section>
-
-      {/* Reference Tools Section (Moved from Advice) */}
-      <section className="py-12 md:py-16 px-4 md:px-8 lg:px-16 bg-[#f5f5f7] relative overflow-hidden">
-        <div className="max-w-7xl mx-auto relative z-10">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.8 }}
-            className="text-center mb-10 md:mb-16"
-          >
-            <div className="inline-flex items-center gap-2 px-4 py-1 rounded-full bg-white text-[#86868b] text-xs font-bold uppercase tracking-wider mb-4 md:mb-6 shadow-sm">
-              <Table className="w-3.5 h-3.5" />
-              Quick Reference
             </div>
-            <h2 className="text-2xl md:text-3xl lg:text-4xl font-bold text-[#1d1d1f] mb-4">切片参数速查表</h2>
-            <p className="text-sm md:text-base text-[#86868b] max-w-2xl mx-auto">基于工作室日常创作经验整理的常用耗材参数区间，供切片时快速参考。</p>
-          </motion.div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-16 md:mb-20">
-            {slicingParams.map((item, idx) => (
-              <motion.div
-                key={item.material}
-                initial={{ opacity: 0, y: 30 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true, margin: "-60px" }}
-                transition={{ duration: 0.7, delay: idx * 0.1 }}
-                className="rounded-[2rem] md:rounded-[2.5rem] bg-white p-6 md:p-8 shimmer-border group card-hover tilt-card"
-              >
-                <div className={`w-14 h-14 md:w-16 md:h-16 rounded-2xl ${item.color} text-white flex items-center justify-center font-bold text-2xl mb-6 shadow-lg glow-ring`}>
-                  {item.material.charAt(0)}
+            {/* Troubleshooting Guide */}
+            <div className="bg-white rounded-[2.5rem] p-6 md:p-8 shadow-sm border border-gray-100">
+              <div className="flex items-center gap-3 mb-6">
+                <div className="w-10 h-10 rounded-xl bg-rose-500/10 flex items-center justify-center text-rose-500">
+                  <AlertTriangle className="w-5 h-5" />
                 </div>
-                <h3 className={`text-2xl md:text-3xl font-black mb-2 ${item.textColor}`}>{item.material}</h3>
-                <p className="text-[#86868b] text-xs md:text-sm mb-6 leading-relaxed">{item.features}</p>
-
-                <div className="space-y-3 md:space-y-4">
-                  <div className="flex items-start gap-3 p-3 md:p-4 rounded-2xl bg-[#f5f5f7]">
-                    <Thermometer className={`w-4 h-4 md:w-5 md:h-5 ${item.textColor} shrink-0 mt-0.5`} />
-                    <div className="flex-grow min-w-0">
-                      <p className="text-[10px] md:text-xs text-[#86868b] uppercase tracking-wider mb-1">喷嘴温度</p>
-                      <p className="font-bold text-[#1d1d1f] text-sm md:text-base">{item.nozzleTemp}</p>
-                    </div>
-                  </div>
-                  <div className="flex items-start gap-3 p-3 md:p-4 rounded-2xl bg-[#f5f5f7]">
-                    <Layers className={`w-4 h-4 md:w-5 md:h-5 ${item.textColor} shrink-0 mt-0.5`} />
-                    <div className="flex-grow min-w-0">
-                      <p className="text-[10px] md:text-xs text-[#86868b] uppercase tracking-wider mb-1">热床温度</p>
-                      <p className="font-bold text-[#1d1d1f] text-sm md:text-base">{item.bedTemp}</p>
-                    </div>
-                  </div>
-                  <div className="flex items-start gap-3 p-3 md:p-4 rounded-2xl bg-[#f5f5f7]">
-                    <Layers className={`w-4 h-4 md:w-5 md:h-5 ${item.textColor} shrink-0 mt-0.5`} />
-                    <div className="flex-grow min-w-0">
-                      <p className="text-[10px] md:text-xs text-[#86868b] uppercase tracking-wider mb-1">推荐层厚</p>
-                      <p className="font-bold text-[#1d1d1f] text-sm md:text-base">{item.layerHeight}</p>
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className={`p-3 md:p-4 rounded-2xl ${item.bgLight}`}>
-                      <p className="text-[10px] md:text-xs text-[#86868b] uppercase tracking-wider mb-1">打印速度</p>
-                      <p className="font-bold text-[#1d1d1f] text-xs md:text-sm">{item.printSpeed}</p>
-                    </div>
-                    <div className={`p-3 md:p-4 rounded-2xl ${item.bgLight}`}>
-                      <p className="text-[10px] md:text-xs text-[#86868b] uppercase tracking-wider mb-1">散热风扇</p>
-                      <p className="font-bold text-[#1d1d1f] text-xs md:text-sm">{item.cooling}</p>
-                    </div>
-                  </div>
-                  <div className={`p-3 md:p-4 rounded-2xl ${item.bgLight}`}>
-                    <div className="flex items-center gap-2">
-                      <Wind className={`w-3.5 h-3.5 md:w-4 md:h-4 ${item.textColor}`} />
-                      <p className="text-[10px] md:text-xs text-[#86868b] uppercase tracking-wider">封闭环境</p>
-                      <p className="ml-auto font-bold text-[#1d1d1f] text-sm">{item.enclosure}</p>
-                    </div>
-                  </div>
+                <div>
+                  <h2 className="text-xl font-bold text-[#1d1d1f]">常见故障排查</h2>
+                  <p className="text-xs text-[#86868b]">打印失败问题速决</p>
                 </div>
-              </motion.div>
-            ))}
-          </div>
+              </div>
 
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.8 }}
-            className="text-center mb-10 md:mb-16"
-          >
-            <div className="inline-flex items-center gap-2 px-4 py-1 rounded-full bg-white text-[#86868b] text-xs font-bold uppercase tracking-wider mb-4 md:mb-6 shadow-sm">
-              <AlertTriangle className="w-3.5 h-3.5" />
-              Troubleshooting
+              <div className="flex flex-col gap-4">
+                {troubleshootingItems.map((issue) => (
+                  <div key={issue.title} className="rounded-2xl border border-[#f5f5f7] p-4 hover:border-gray-200 transition-colors">
+                    <div className="flex items-center gap-3 mb-3">
+                      <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${issue.color}`}>
+                        {issue.icon}
+                      </div>
+                      <h3 className="font-bold text-[#1d1d1f] text-sm">{issue.title}</h3>
+                    </div>
+                    <ul className="space-y-2">
+                      {issue.points.slice(0, 2).map((point, i) => (
+                        <li key={i} className="flex items-start gap-2 text-[#86868b] text-xs">
+                          <div className="w-1.5 h-1.5 rounded-full bg-gray-300 mt-1 shrink-0" />
+                          <span className="leading-tight">{point}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ))}
+              </div>
             </div>
-            <h2 className="text-2xl md:text-3xl lg:text-4xl font-bold text-[#1d1d1f] mb-4">常见问题排查</h2>
-            <p className="text-sm md:text-base text-[#86868b] max-w-2xl mx-auto">汇总创作过程中最常遇到的几类故障现象与基础排查方向，帮助创客独立解决问题。</p>
-          </motion.div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
-            {troubleshootingItems.map((issue, idx) => (
-              <motion.div
-                key={issue.title}
-                initial={{ opacity: 0, y: 30 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true, margin: "-60px" }}
-                transition={{ duration: 0.7, delay: idx * 0.1 }}
-                className="rounded-[2rem] md:rounded-[2.5rem] bg-white p-6 md:p-8 shimmer-card group card-hover"
-              >
-                <div className="flex items-center gap-4 mb-6">
-                  <div className={`w-12 h-12 md:w-14 md:h-14 rounded-2xl flex items-center justify-center shadow-sm ${issue.color}`}>
-                    {issue.icon}
-                  </div>
-                  <h3 className="text-lg md:text-xl font-bold text-[#1d1d1f]">{issue.title}</h3>
-                </div>
-                <ul className="space-y-3">
-                  {issue.points.map((point, i) => (
-                    <li key={i} className="flex items-start gap-3 text-[#86868b] text-xs md:text-sm leading-relaxed">
-                      <span className="w-5 h-5 md:w-6 md:h-6 rounded-full bg-[#f5f5f7] text-[#1d1d1f] text-[10px] md:text-xs font-bold flex items-center justify-center shrink-0 mt-0.5">
-                        {i + 1}
-                      </span>
-                      <span className="pt-0.5">{point}</span>
-                    </li>
-                  ))}
-                </ul>
-              </motion.div>
-            ))}
           </div>
         </div>
-      </section>
+      </div>
 
       {/* Detail Modal */}
       <AnimatePresence>
