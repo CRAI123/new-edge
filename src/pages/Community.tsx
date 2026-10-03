@@ -413,7 +413,7 @@ export default function Community() {
                 <div className="p-4 border-t border-[#f5f5f7] bg-white">
                   <div className="flex gap-3">
                     <img 
-                      src={user?.user_metadata?.avatar_url || 'https://api.dicebear.com/7.x/avataaars/svg?seed=fallback'}
+                      src={'https://api.dicebear.com/7.x/avataaars/svg?seed=fallback'}
                       alt="your avatar"
                       className="w-10 h-10 rounded-full border border-gray-200 shrink-0"
                     />

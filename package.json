@@ -64,5 +64,10 @@
     "typescript-eslint": "^8.30.1",
     "vite": "^6.3.5",
     "vite-tsconfig-paths": "^5.1.4"
+  },
+  "allowScripts": {
+    "canvas": "true",
+    "core-js": "true",
+    "esbuild": "true"
   }
 }
