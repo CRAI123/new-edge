@@ -1,5 +1,5 @@
 import { Link, useNavigate } from "react-router-dom";
-import { User, LogIn, LayoutDashboard, LogOut, Settings, ChevronDown, Menu, X } from "lucide-react";
+import { User, LogIn, LayoutDashboard, LogOut, Settings, ChevronDown, Menu, X, ShieldAlert } from "lucide-react";
 import { useUserStore } from "@/store/useUserStore";
 import MemberBadge from "./Badge/MemberBadge";
 import { motion, AnimatePresence } from "framer-motion";
@@ -15,7 +15,7 @@ export default function Navbar() {
   const handleLogout = async () => {
     await supabase.auth.signOut();
     setUser(null);
-    navigate("/login");
+    navigate("/auth");
   };
 
   const toggleMobileMenu = () => {
@@ -49,12 +49,17 @@ export default function Navbar() {
       {/* Desktop Navigation */}
       <div className="hidden lg:flex items-center gap-8 text-[15px] font-medium text-[#1d1d1f]">
         <Link to="/" onClick={() => setIsMobileMenuOpen(false)} className="hover:text-[#0071e3] transition-colors nav-link-scan">首页</Link>
-        <Link to="/printers" onClick={() => setIsMobileMenuOpen(false)} className="hover:text-[#0071e3] transition-colors nav-link-scan">设备方案</Link>
+        <Link to="/printers" onClick={() => setIsMobileMenuOpen(false)} className="hover:text-[#0071e3] transition-colors nav-link-scan">设备与工具</Link>
         <Link to="/products" onClick={() => setIsMobileMenuOpen(false)} className="hover:text-[#0071e3] transition-colors nav-link-scan">原创周边</Link>
         <Link to="/resources" onClick={() => setIsMobileMenuOpen(false)} className="hover:text-[#0071e3] transition-colors nav-link-scan">课件资源</Link>
         <Link to="/community" onClick={() => setIsMobileMenuOpen(false)} className="hover:text-[#0071e3] transition-colors nav-link-scan">大神社区</Link>
-        <Link to="/advice" onClick={() => setIsMobileMenuOpen(false)} className="hover:text-[#0071e3] transition-colors nav-link-scan">创作工具</Link>
         <Link to="/team" onClick={() => setIsMobileMenuOpen(false)} className="hover:text-[#0071e3] transition-colors nav-link-scan">关于我们</Link>
+        {(user?.role === 'reviewer' || isAdmin) && (
+          <Link to="/admin/moderation" onClick={() => setIsMobileMenuOpen(false)} className="text-orange-500 flex items-center gap-1 font-bold nav-link-scan group">
+            <ShieldAlert className="w-4 h-4 transition-transform duration-300 group-hover:scale-110" />
+            内容审核
+          </Link>
+        )}
         {isAdmin && (
           <Link to="/admin" onClick={() => setIsMobileMenuOpen(false)} className="text-[#0071e3] flex items-center gap-1 font-bold nav-link-scan group">
             <LayoutDashboard className="w-4 h-4 transition-transform duration-300 group-hover:rotate-12" />
@@ -118,6 +123,12 @@ export default function Navbar() {
                         <Settings className="w-4 h-4 text-[#86868b]" />
                         账号设置
                       </Link>
+                      {(user?.role === 'reviewer' || isAdmin) && (
+                        <Link to="/admin/moderation" className="flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-orange-50 transition-colors text-[15px] text-orange-500 font-medium">
+                          <ShieldAlert className="w-4 h-4" />
+                          内容审核
+                        </Link>
+                      )}
                       {isAdmin && (
                         <Link to="/admin" className="flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-[#f5f5f7] transition-colors text-[15px] text-[#0071e3] font-medium">
                           <LayoutDashboard className="w-4 h-4" />
@@ -141,13 +152,9 @@ export default function Navbar() {
             </div>
           ) : (
             <div className="flex items-center gap-3">
-              <Link to="/login" className="flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium text-[#1d1d1f] hover:bg-[#f5f5f7] transition-all">
+              <Link to="/auth" className="btn-primary text-sm flex items-center gap-2">
                 <LogIn className="w-4 h-4" />
-                登录
-              </Link>
-              <Link to="/register" className="btn-primary text-sm flex items-center gap-2">
-                <User className="w-4 h-4" />
-                注册
+                登录 / 注册
               </Link>
             </div>
           )}
@@ -179,7 +186,7 @@ export default function Navbar() {
                   <ChevronDown className="w-5 h-5 -rotate-90 text-[#86868b]" />
                 </Link>
                 <Link to="/printers" onClick={toggleMobileMenu} className="flex items-center justify-between p-4 rounded-2xl bg-[#f5f5f7]/50 hover:bg-[#f5f5f7] active:bg-[#e5e5ea] transition-all text-[17px] font-semibold text-[#1d1d1f]">
-                  设备方案
+                  设备与工具
                   <ChevronDown className="w-5 h-5 -rotate-90 text-[#86868b]" />
                 </Link>
                 <Link to="/products" onClick={toggleMobileMenu} className="flex items-center justify-between p-4 rounded-2xl bg-[#f5f5f7]/50 hover:bg-[#f5f5f7] active:bg-[#e5e5ea] transition-all text-[17px] font-semibold text-[#1d1d1f]">
@@ -194,14 +201,19 @@ export default function Navbar() {
                   大神社区
                   <ChevronDown className="w-5 h-5 -rotate-90 text-[#86868b]" />
                 </Link>
-                <Link to="/advice" onClick={toggleMobileMenu} className="flex items-center justify-between p-4 rounded-2xl bg-[#f5f5f7]/50 hover:bg-[#f5f5f7] active:bg-[#e5e5ea] transition-all text-[17px] font-semibold text-[#1d1d1f]">
-                  创作工具
-                  <ChevronDown className="w-5 h-5 -rotate-90 text-[#86868b]" />
-                </Link>
                 <Link to="/team" onClick={toggleMobileMenu} className="flex items-center justify-between p-4 rounded-2xl bg-[#f5f5f7]/50 hover:bg-[#f5f5f7] active:bg-[#e5e5ea] transition-all text-[17px] font-semibold text-[#1d1d1f]">
                   关于我们
                   <ChevronDown className="w-5 h-5 -rotate-90 text-[#86868b]" />
                 </Link>
+                {(user?.role === 'reviewer' || isAdmin) && (
+                  <Link to="/admin/moderation" onClick={toggleMobileMenu} className="flex items-center justify-between p-4 rounded-2xl bg-[#f5f5f7]/50 hover:bg-[#f5f5f7] active:bg-[#e5e5ea] transition-all text-[17px] font-semibold text-orange-500">
+                    <div className="flex items-center gap-2">
+                      <ShieldAlert className="w-5 h-5" />
+                      内容审核
+                    </div>
+                    <ChevronDown className="w-5 h-5 -rotate-90 text-orange-500" />
+                  </Link>
+                )}
                 {isAdmin && (
                   <Link to="/admin" onClick={toggleMobileMenu} className="flex items-center justify-between p-4 rounded-2xl bg-[#f5f5f7]/50 hover:bg-[#f5f5f7] active:bg-[#e5e5ea] transition-all text-[17px] font-semibold text-[#0071e3]">
                     <div className="flex items-center gap-2">
@@ -262,13 +274,9 @@ export default function Navbar() {
                   </div>
                 ) : (
                   <div className="flex flex-col gap-3">
-                    <Link to="/login" onClick={toggleMobileMenu} className="btn-primary w-full text-lg flex items-center justify-center gap-2 py-4 rounded-2xl">
+                    <Link to="/auth" onClick={toggleMobileMenu} className="btn-primary w-full text-lg flex items-center justify-center gap-2 py-4 rounded-2xl">
                       <LogIn className="w-5 h-5" />
-                      立即登录
-                    </Link>
-                    <Link to="/register" onClick={toggleMobileMenu} className="btn-secondary w-full text-lg flex items-center justify-center gap-2 py-4 rounded-2xl">
-                      <User className="w-5 h-5" />
-                      注册账号
+                      登录 / 注册
                     </Link>
                   </div>
                 )}

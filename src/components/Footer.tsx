@@ -31,10 +31,9 @@ export default function Footer() {
         <div>
           <h4 className="text-[#1d1d1f] font-semibold mb-6">核心业务</h4>
           <ul className="flex flex-col gap-3">
-            <li><Link to="/printers" className="hover:text-[#0071e3] transition-colors nav-link-scan inline-block">设备方案参考</Link></li>
+            <li><Link to="/printers" className="hover:text-[#0071e3] transition-colors nav-link-scan inline-block">设备与工具</Link></li>
             <li><Link to="/products" className="hover:text-[#0071e3] transition-colors nav-link-scan inline-block">原创IP周边</Link></li>
             <li><Link to="/resources" className="hover:text-[#0071e3] transition-colors nav-link-scan inline-block">信息科技课件</Link></li>
-            <li><Link to="/advice" className="hover:text-[#0071e3] transition-colors nav-link-scan inline-block">创作工具箱</Link></li>
           </ul>
         </div>
 
@@ -44,7 +43,6 @@ export default function Footer() {
             <li><Link to="/resources" className="hover:text-[#0071e3] transition-colors nav-link-scan inline-block">小学资源包</Link></li>
             <li><Link to="/resources" className="hover:text-[#0071e3] transition-colors nav-link-scan inline-block">初中课件集</Link></li>
             <li><Link to="/resources" className="hover:text-[#0071e3] transition-colors nav-link-scan inline-block">高中创新项目</Link></li>
-            <li><Link to="/advice" className="hover:text-[#0071e3] transition-colors nav-link-scan inline-block">创作小工具</Link></li>
           </ul>
         </div>
 
@@ -68,6 +66,7 @@ export default function Footer() {
             <Link to="/terms" className="hover:underline hover:text-[#0071e3] transition-colors nav-link-scan inline-block">使用条款</Link>
             <Link to="/cookie-policy" className="hover:underline hover:text-[#0071e3] transition-colors nav-link-scan inline-block">Cookie 政策</Link>
             <Link to="/sales" className="hover:underline hover:text-[#0071e3] transition-colors nav-link-scan inline-block">免责声明</Link>
+            <Link to="/community-guidelines" className="hover:underline hover:text-[#0071e3] transition-colors nav-link-scan inline-block">社区规范</Link>
           </div>
           {/* 备案号暂时隐藏 */}
           {/* <div className="flex items-center gap-2 mt-2 md:mt-0">

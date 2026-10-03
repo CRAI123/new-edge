@@ -6,7 +6,7 @@ export interface UserProfile {
   id: string;
   email: string;
   fullName: string;
-  role: 'teacher' | 'student' | 'individual' | 'admin';
+  role: 'teacher' | 'student' | 'individual' | 'admin' | 'reviewer';
   level: MemberLevel;
   loginCount: number;
   browseCount: number;

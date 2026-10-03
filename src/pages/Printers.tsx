@@ -13,11 +13,97 @@ import {
   Printer as PrinterIcon,
   Loader2,
   Sparkles,
-  Info
+  Info,
+  Calculator,
+  Table,
+  Clock,
+  Wrench,
+  Thermometer,
+  Layers,
+  Droplets,
+  Wind
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { Link } from "react-router-dom";
 import { useUserStore } from "@/store/useUserStore";
+
+const slicingParams = [
+  {
+    material: "PLA",
+    color: "bg-[#28cd41]",
+    textColor: "text-[#28cd41]",
+    bgLight: "bg-[#28cd41]/10",
+    nozzleTemp: "190 ~ 220°C",
+    bedTemp: "50 ~ 70°C",
+    layerHeight: "0.12 ~ 0.28mm",
+    printSpeed: "40 ~ 80mm/s",
+    cooling: "全开",
+    enclosure: "无需",
+    features: "易打印、低翘曲、色彩丰富"
+  },
+  {
+    material: "ABS",
+    color: "bg-[#f59e0b]",
+    textColor: "text-[#f59e0b]",
+    bgLight: "bg-[#f59e0b]/10",
+    nozzleTemp: "230 ~ 260°C",
+    bedTemp: "90 ~ 110°C",
+    layerHeight: "0.15 ~ 0.3mm",
+    printSpeed: "30 ~ 60mm/s",
+    cooling: "半开 / 关闭",
+    enclosure: "建议",
+    features: "高强度、耐高温、需封闭环境"
+  },
+  {
+    material: "PETG",
+    color: "bg-[#0071e3]",
+    textColor: "text-[#0071e3]",
+    bgLight: "bg-[#0071e3]/10",
+    nozzleTemp: "220 ~ 250°C",
+    bedTemp: "70 ~ 85°C",
+    layerHeight: "0.12 ~ 0.28mm",
+    printSpeed: "30 ~ 70mm/s",
+    cooling: "50% ~ 80%",
+    enclosure: "可选",
+    features: "韧性好、透明可选、耐化学"
+  }
+];
+
+const troubleshootingItems = [
+  {
+    title: "堵头 / 不出料",
+    icon: <Wrench className="w-5 h-5" />,
+    color: "bg-[#ef4444]/10 text-[#ef4444]",
+    points: [
+      "检查耗材是否在喷嘴处熔化并冷却堵塞",
+      "适当提高喷嘴温度 5~10°C 重试",
+      "使用清理针或专用清理耗材通喷嘴",
+      "确认耗材进料齿轮松紧度合适"
+    ]
+  },
+  {
+    title: "翘边 / 底部分离",
+    icon: <Layers className="w-5 h-5" />,
+    color: "bg-[#f59e0b]/10 text-[#f59e0b]",
+    points: [
+      "确认平台清洁，无灰尘油污残留",
+      "检查首层是否过于贴近或远离平台",
+      "添加裙边（Brim）或 raft 增加接触面积",
+      "降低冷却风扇速度，保持环境温度稳定"
+    ]
+  },
+  {
+    title: "层分离 / 断裂",
+    icon: <Droplets className="w-5 h-5" />,
+    color: "bg-[#8b5cf6]/10 text-[#8b5cf6]",
+    points: [
+      "适当提高喷嘴温度，增强层间粘合",
+      "降低打印速度，给每层足够熔合时间",
+      "检查环境是否有冷风直吹打印件",
+      "确认耗材干燥，吸湿材料需烘干后使用"
+    ]
+  }
+];
 
 const PRINTER_IMAGE_FALLBACKS: {
   brand: string;
@@ -275,12 +361,12 @@ export default function Printers() {
               Device Showcase
             </div>
             <h1 className="text-2xl md:text-4xl lg:text-5xl font-bold mb-3 md:mb-4">
-              <span className="gradient-text-dual">3D 打印设备</span>
+              <span className="gradient-text-dual">3D 打印设备与工具</span>
               ·创客选型参考
             </h1>
             <p className="text-sm md:text-base lg:text-lg text-[#86868b] leading-relaxed max-w-3xl mx-auto">
-              汇总创客团队日常使用与学习研究中接触过的设备型号，整理真实使用感受与参数速览，
-              供青少年创客与科创教师在选购前做信息参考。
+              汇总创客团队日常使用与学习研究中接触过的设备型号与切片参数，整理真实使用感受与故障排查速览，
+              供青少年创客与科创教师在创作与选购前做信息参考。
             </p>
           </motion.div>
 
@@ -542,6 +628,131 @@ export default function Printers() {
               </div>
             </>
           )}
+        </div>
+      </section>
+
+      {/* Reference Tools Section (Moved from Advice) */}
+      <section className="py-12 md:py-16 px-4 md:px-8 lg:px-16 bg-[#f5f5f7] relative overflow-hidden">
+        <div className="max-w-7xl mx-auto relative z-10">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.8 }}
+            className="text-center mb-10 md:mb-16"
+          >
+            <div className="inline-flex items-center gap-2 px-4 py-1 rounded-full bg-white text-[#86868b] text-xs font-bold uppercase tracking-wider mb-4 md:mb-6 shadow-sm">
+              <Table className="w-3.5 h-3.5" />
+              Quick Reference
+            </div>
+            <h2 className="text-2xl md:text-3xl lg:text-4xl font-bold text-[#1d1d1f] mb-4">切片参数速查表</h2>
+            <p className="text-sm md:text-base text-[#86868b] max-w-2xl mx-auto">基于工作室日常创作经验整理的常用耗材参数区间，供切片时快速参考。</p>
+          </motion.div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-16 md:mb-20">
+            {slicingParams.map((item, idx) => (
+              <motion.div
+                key={item.material}
+                initial={{ opacity: 0, y: 30 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true, margin: "-60px" }}
+                transition={{ duration: 0.7, delay: idx * 0.1 }}
+                className="rounded-[2rem] md:rounded-[2.5rem] bg-white p-6 md:p-8 shimmer-border group card-hover tilt-card"
+              >
+                <div className={`w-14 h-14 md:w-16 md:h-16 rounded-2xl ${item.color} text-white flex items-center justify-center font-bold text-2xl mb-6 shadow-lg glow-ring`}>
+                  {item.material.charAt(0)}
+                </div>
+                <h3 className={`text-2xl md:text-3xl font-black mb-2 ${item.textColor}`}>{item.material}</h3>
+                <p className="text-[#86868b] text-xs md:text-sm mb-6 leading-relaxed">{item.features}</p>
+
+                <div className="space-y-3 md:space-y-4">
+                  <div className="flex items-start gap-3 p-3 md:p-4 rounded-2xl bg-[#f5f5f7]">
+                    <Thermometer className={`w-4 h-4 md:w-5 md:h-5 ${item.textColor} shrink-0 mt-0.5`} />
+                    <div className="flex-grow min-w-0">
+                      <p className="text-[10px] md:text-xs text-[#86868b] uppercase tracking-wider mb-1">喷嘴温度</p>
+                      <p className="font-bold text-[#1d1d1f] text-sm md:text-base">{item.nozzleTemp}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-3 p-3 md:p-4 rounded-2xl bg-[#f5f5f7]">
+                    <Layers className={`w-4 h-4 md:w-5 md:h-5 ${item.textColor} shrink-0 mt-0.5`} />
+                    <div className="flex-grow min-w-0">
+                      <p className="text-[10px] md:text-xs text-[#86868b] uppercase tracking-wider mb-1">热床温度</p>
+                      <p className="font-bold text-[#1d1d1f] text-sm md:text-base">{item.bedTemp}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-3 p-3 md:p-4 rounded-2xl bg-[#f5f5f7]">
+                    <Layers className={`w-4 h-4 md:w-5 md:h-5 ${item.textColor} shrink-0 mt-0.5`} />
+                    <div className="flex-grow min-w-0">
+                      <p className="text-[10px] md:text-xs text-[#86868b] uppercase tracking-wider mb-1">推荐层厚</p>
+                      <p className="font-bold text-[#1d1d1f] text-sm md:text-base">{item.layerHeight}</p>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className={`p-3 md:p-4 rounded-2xl ${item.bgLight}`}>
+                      <p className="text-[10px] md:text-xs text-[#86868b] uppercase tracking-wider mb-1">打印速度</p>
+                      <p className="font-bold text-[#1d1d1f] text-xs md:text-sm">{item.printSpeed}</p>
+                    </div>
+                    <div className={`p-3 md:p-4 rounded-2xl ${item.bgLight}`}>
+                      <p className="text-[10px] md:text-xs text-[#86868b] uppercase tracking-wider mb-1">散热风扇</p>
+                      <p className="font-bold text-[#1d1d1f] text-xs md:text-sm">{item.cooling}</p>
+                    </div>
+                  </div>
+                  <div className={`p-3 md:p-4 rounded-2xl ${item.bgLight}`}>
+                    <div className="flex items-center gap-2">
+                      <Wind className={`w-3.5 h-3.5 md:w-4 md:h-4 ${item.textColor}`} />
+                      <p className="text-[10px] md:text-xs text-[#86868b] uppercase tracking-wider">封闭环境</p>
+                      <p className="ml-auto font-bold text-[#1d1d1f] text-sm">{item.enclosure}</p>
+                    </div>
+                  </div>
+                </div>
+              </motion.div>
+            ))}
+          </div>
+
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.8 }}
+            className="text-center mb-10 md:mb-16"
+          >
+            <div className="inline-flex items-center gap-2 px-4 py-1 rounded-full bg-white text-[#86868b] text-xs font-bold uppercase tracking-wider mb-4 md:mb-6 shadow-sm">
+              <AlertTriangle className="w-3.5 h-3.5" />
+              Troubleshooting
+            </div>
+            <h2 className="text-2xl md:text-3xl lg:text-4xl font-bold text-[#1d1d1f] mb-4">常见问题排查</h2>
+            <p className="text-sm md:text-base text-[#86868b] max-w-2xl mx-auto">汇总创作过程中最常遇到的几类故障现象与基础排查方向，帮助创客独立解决问题。</p>
+          </motion.div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
+            {troubleshootingItems.map((issue, idx) => (
+              <motion.div
+                key={issue.title}
+                initial={{ opacity: 0, y: 30 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true, margin: "-60px" }}
+                transition={{ duration: 0.7, delay: idx * 0.1 }}
+                className="rounded-[2rem] md:rounded-[2.5rem] bg-white p-6 md:p-8 shimmer-card group card-hover"
+              >
+                <div className="flex items-center gap-4 mb-6">
+                  <div className={`w-12 h-12 md:w-14 md:h-14 rounded-2xl flex items-center justify-center shadow-sm ${issue.color}`}>
+                    {issue.icon}
+                  </div>
+                  <h3 className="text-lg md:text-xl font-bold text-[#1d1d1f]">{issue.title}</h3>
+                </div>
+                <ul className="space-y-3">
+                  {issue.points.map((point, i) => (
+                    <li key={i} className="flex items-start gap-3 text-[#86868b] text-xs md:text-sm leading-relaxed">
+                      <span className="w-5 h-5 md:w-6 md:h-6 rounded-full bg-[#f5f5f7] text-[#1d1d1f] text-[10px] md:text-xs font-bold flex items-center justify-center shrink-0 mt-0.5">
+                        {i + 1}
+                      </span>
+                      <span className="pt-0.5">{point}</span>
+                    </li>
+                  ))}
+                </ul>
+              </motion.div>
+            ))}
+          </div>
         </div>
       </section>
 

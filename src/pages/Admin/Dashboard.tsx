@@ -8,7 +8,10 @@ import {
   Package,
   Clock,
   Printer,
-  FileCheck
+  FileCheck,
+  ShieldAlert,
+  MessageSquare,
+  MonitorPlay
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useState, useEffect } from "react";
@@ -194,6 +197,15 @@ export default function AdminDashboard() {
                     <Package className="w-5 h-5 text-[#86868b] group-hover:text-white group-hover:translate-x-1 transition-all" />
                   </div>
                 </Link>
+                <Link to="/admin/moderation" className="group p-6 rounded-3xl bg-[#f5f5f7] hover:bg-orange-500 transition-all duration-300">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="font-bold text-lg group-hover:text-white transition-colors">内容审核</h3>
+                      <p className="text-sm text-[#86868b] group-hover:text-white/80 transition-colors">审核社区分享内容</p>
+                    </div>
+                    <ShieldAlert className="w-5 h-5 text-[#86868b] group-hover:text-white group-hover:translate-x-1 transition-all" />
+                  </div>
+                </Link>
                 <Link to="/order-generator" className="group p-6 rounded-3xl bg-gradient-to-br from-violet-50 to-white hover:from-[#8b5cf6] hover:to-[#7c3aed] transition-all duration-300 border border-violet-100 hover:border-transparent">
                   <div className="flex items-center justify-between">
                     <div>
@@ -201,6 +213,26 @@ export default function AdminDashboard() {
                       <p className="text-sm text-[#86868b] group-hover:text-white/80 transition-colors">自定义订单与分享图</p>
                     </div>
                     <FileCheck className="w-5 h-5 text-[#8b5cf6] group-hover:text-white group-hover:translate-x-1 transition-all" />
+                  </div>
+                </Link>
+                <Link to="/admin/community" className="group p-6 rounded-3xl bg-[#f5f5f7] hover:bg-pink-500 transition-all duration-300">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="font-bold text-lg group-hover:text-white transition-colors">社区内容</h3>
+                      <p className="text-sm text-[#86868b] group-hover:text-white/80 transition-colors">管理社区所有帖子</p>
+                    </div>
+                    <MessageSquare className="w-5 h-5 text-[#86868b] group-hover:text-white group-hover:translate-x-1 transition-all" />
+                  </div>
+                </Link>
+                <Link to="/admin/gallery" className="group p-6 rounded-3xl bg-[#0a0a0a] hover:bg-black transition-all duration-300 border border-[#222]">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="font-bold text-lg text-white transition-colors">直播画廊</h3>
+                      <p className="text-sm text-gray-400 transition-colors">沉浸式大屏滚动展示</p>
+                    </div>
+                    <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center group-hover:scale-110 transition-transform">
+                      <MonitorPlay className="w-4 h-4 text-white" />
+                    </div>
                   </div>
                 </Link>
               </div>

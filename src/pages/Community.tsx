@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Heart, MessageCircle, Eye, Image as ImageIcon, FileBox, Plus, X, UploadCloud, Play } from 'lucide-react';
+import { Heart, MessageCircle, Eye, Image as ImageIcon, FileBox, Plus, X, UploadCloud, Play, CheckCircle, Shield, Share2 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useUserStore } from '@/store/useUserStore';
 import { showToast } from '@/lib/utils';
@@ -27,13 +27,28 @@ export default function Community() {
   const [activeTab, setActiveTab] = useState('全部');
   const [showPostModal, setShowPostModal] = useState(false);
   
+  const [comments, setComments] = useState<any[]>([]);
+  const [newComment, setNewComment] = useState('');
+  const [selectedPostId, setSelectedPostId] = useState<string | null>(null);
+  const [showCommentModal, setShowCommentModal] = useState(false);
+  const [isSubmittingComment, setIsSubmittingComment] = useState(false);
+  const [likedPosts, setLikedPosts] = useState<Set<string>>(new Set());
+
   // Post Form State
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [postCategory, setPostCategory] = useState('分享');
   const [mediaFiles, setMediaFiles] = useState<File[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [agreedToGuidelines, setAgreedToGuidelines] = useState(() => {
+    return localStorage.getItem('rayzo_community_agreed') === 'true';
+  });
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Sync agreement state to localStorage
+  useEffect(() => {
+    localStorage.setItem('rayzo_community_agreed', agreedToGuidelines.toString());
+  }, [agreedToGuidelines]);
 
   useEffect(() => {
     fetchPosts();
@@ -45,7 +60,20 @@ export default function Community() {
       if (activeTab !== '全部') url += `&category=${activeTab}`;
       const res = await fetch((import.meta.env.VITE_API_BASE_URL || '') + url);
       const { data } = await res.json();
-      if (data) setPosts(data);
+      if (data) {
+        setPosts(data);
+        // Check which posts the user has liked
+        if (user) {
+          const { data: likes } = await supabase
+            .from('post_likes')
+            .select('post_id')
+            .eq('user_id', user.id);
+          
+          if (likes) {
+            setLikedPosts(new Set(likes.map(l => l.post_id)));
+          }
+        }
+      }
     } catch (err) {
       console.error('Failed to fetch posts', err);
     }
@@ -62,9 +90,96 @@ export default function Community() {
     setMediaFiles(prev => prev.filter((_, i) => i !== index));
   };
 
+  const handleShare = async (postId: string) => {
+    const url = `${window.location.origin}/community?post=${postId}`;
+    try {
+      if (navigator.share) {
+        await navigator.share({
+          title: '大神社区',
+          text: '快来看看这篇关于3D打印的帖子！',
+          url: url
+        });
+      } else {
+        await navigator.clipboard.writeText(url);
+        showToast('success', '链接已复制到剪贴板');
+      }
+    } catch (err) {
+      console.error('Share failed', err);
+    }
+  };
+
+  const handleLike = async (postId: string) => {
+    if (!user) return showToast('error', '请先登录');
+    
+    try {
+      const res = await fetch(`${import.meta.env.VITE_API_BASE_URL || ''}/api/posts/${postId}/like`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: user.id })
+      });
+      
+      const { success, action, likes_count } = await res.json();
+      
+      if (success) {
+        setPosts(posts.map(p => p.id === postId ? { ...p, likes_count } : p));
+        setLikedPosts(prev => {
+          const newSet = new Set(prev);
+          if (action === 'liked') newSet.add(postId);
+          else newSet.delete(postId);
+          return newSet;
+        });
+      }
+    } catch (err) {
+      console.error('Failed to toggle like', err);
+    }
+  };
+
+  const handleOpenComments = async (postId: string) => {
+    setSelectedPostId(postId);
+    setShowCommentModal(true);
+    setComments([]);
+    
+    try {
+      const res = await fetch(`${import.meta.env.VITE_API_BASE_URL || ''}/api/posts/${postId}/comments`);
+      const { success, comments } = await res.json();
+      if (success) setComments(comments);
+    } catch (err) {
+      console.error('Failed to fetch comments', err);
+    }
+  };
+
+  const handlePostComment = async () => {
+    if (!user) return showToast('error', '请先登录');
+    if (!newComment.trim()) return;
+    if (!selectedPostId) return;
+    
+    setIsSubmittingComment(true);
+    try {
+      const res = await fetch(`${import.meta.env.VITE_API_BASE_URL || ''}/api/posts/${selectedPostId}/comments`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: user.id, content: newComment.trim() })
+      });
+      
+      const { success, comment } = await res.json();
+      
+      if (success) {
+        setComments([...comments, comment]);
+        setNewComment('');
+        showToast('success', '评论成功');
+      }
+    } catch (err) {
+      console.error('Failed to post comment', err);
+      showToast('error', '评论失败');
+    } finally {
+      setIsSubmittingComment(false);
+    }
+  };
+
   const handleCreatePost = async () => {
     if (!user) return showToast('error', '请先登录');
     if (!title.trim() || !content.trim()) return showToast('error', '标题和内容不能为空');
+    if (!agreedToGuidelines) return showToast('error', '请阅读并同意社区规范');
     
     setIsSubmitting(true);
     try {
@@ -114,6 +229,7 @@ export default function Community() {
       setTitle('');
       setContent('');
       setMediaFiles([]);
+      // Do not reset agreedToGuidelines so the user doesn't have to check it again
       fetchPosts();
     } catch (err: any) {
       showToast('error', `发布失败: ${err.message}`);
@@ -142,8 +258,19 @@ export default function Community() {
         </div>
       ) : (
         <div className="max-w-7xl mx-auto">
-          <div className="flex justify-between items-center mb-8">
-            <h1 className="text-3xl font-bold text-[#1d1d1f]">大神社区</h1>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-8 gap-4">
+            <div className="flex flex-col items-start gap-2">
+              <h1 className="text-3xl font-bold text-[#1d1d1f]">大神社区</h1>
+              <a 
+                href="/community-guidelines" 
+                target="_blank" 
+                rel="noopener noreferrer" 
+                className="inline-flex items-center gap-1.5 text-sm text-[#0071e3] bg-[#0071e3]/10 hover:bg-[#0071e3]/20 px-3 py-1 rounded-full transition-colors"
+              >
+                <Shield className="w-3.5 h-3.5" />
+                社区规范与免责声明
+              </a>
+            </div>
             <button 
               onClick={() => {
                 if (!user) {
@@ -218,7 +345,7 @@ export default function Community() {
                     
                     <div className="flex items-center gap-3 text-xs text-[#86868b]">
                       <span className="flex items-center gap-1"><Eye className="w-3 h-3"/> {post.views_count}</span>
-                      <span className="flex items-center gap-1"><Heart className="w-3 h-3"/> {post.likes_count}</span>
+                      <span className={`flex items-center gap-1 transition-colors ${likedPosts.has(post.id) ? 'text-rose-500' : ''}`}><Heart className={`w-3 h-3 ${likedPosts.has(post.id) ? 'fill-current' : ''}`}/> {post.likes_count}</span>
                     </div>
                   </div>
                 </div>
@@ -228,7 +355,98 @@ export default function Community() {
         </div>
       )}
 
-      {/* Create Post Modal */}
+      {/* Comment Modal */}
+        <AnimatePresence>
+          {showCommentModal && selectedPostId && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+              onClick={() => setShowCommentModal(false)}
+            >
+              <motion.div
+                initial={{ scale: 0.95, opacity: 0, y: 20 }}
+                animate={{ scale: 1, opacity: 1, y: 0 }}
+                exit={{ scale: 0.95, opacity: 0, y: 20 }}
+                onClick={(e) => e.stopPropagation()}
+                className="bg-white rounded-3xl w-full max-w-lg overflow-hidden shadow-2xl flex flex-col max-h-[80vh]"
+              >
+                <div className="p-6 border-b border-[#f5f5f7] flex items-center justify-between sticky top-0 bg-white z-10">
+                  <h2 className="text-xl font-bold text-[#1d1d1f] flex items-center gap-2">
+                    <MessageCircle className="w-5 h-5 text-[#0071e3]" />
+                    评论
+                  </h2>
+                  <button onClick={() => setShowCommentModal(false)} className="p-2 hover:bg-gray-100 rounded-full transition-colors">
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+
+                <div className="p-6 overflow-y-auto flex-1 bg-[#f5f5f7]/50 space-y-6">
+                  {comments.length === 0 ? (
+                    <div className="text-center text-[#86868b] py-8">
+                      <MessageCircle className="w-12 h-12 mx-auto mb-3 opacity-20" />
+                      <p>还没有人评论，快来抢沙发吧！</p>
+                    </div>
+                  ) : (
+                    comments.map(comment => (
+                      <div key={comment.id} className="flex gap-4">
+                        <img 
+                          src={comment.profiles?.avatar_url || 'https://api.dicebear.com/7.x/avataaars/svg?seed=fallback'}
+                          alt="avatar"
+                          className="w-10 h-10 rounded-full border border-white shadow-sm shrink-0"
+                        />
+                        <div className="flex-1">
+                          <div className="bg-white p-4 rounded-2xl rounded-tl-none shadow-sm">
+                            <div className="flex items-center justify-between mb-1">
+                              <span className="font-bold text-[#1d1d1f] text-sm">{comment.profiles?.full_name || '匿名大神'}</span>
+                              <span className="text-xs text-[#86868b]">{new Date(comment.created_at).toLocaleDateString()}</span>
+                            </div>
+                            <p className="text-[#1d1d1f] text-sm leading-relaxed whitespace-pre-wrap">{comment.content}</p>
+                          </div>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+
+                <div className="p-4 border-t border-[#f5f5f7] bg-white">
+                  <div className="flex gap-3">
+                    <img 
+                      src={user?.user_metadata?.avatar_url || 'https://api.dicebear.com/7.x/avataaars/svg?seed=fallback'}
+                      alt="your avatar"
+                      className="w-10 h-10 rounded-full border border-gray-200 shrink-0"
+                    />
+                    <div className="flex-1 flex gap-2">
+                      <input
+                        type="text"
+                        value={newComment}
+                        onChange={(e) => setNewComment(e.target.value)}
+                        placeholder={user ? "写下你的评论..." : "请先登录后再评论"}
+                        disabled={!user || isSubmittingComment}
+                        onKeyPress={(e) => {
+                          if (e.key === 'Enter') {
+                            handlePostComment();
+                          }
+                        }}
+                        className="flex-1 bg-[#f5f5f7] border-none rounded-full px-4 py-2 text-sm focus:ring-2 focus:ring-[#0071e3]/20 focus:outline-none transition-all disabled:opacity-50"
+                      />
+                      <button
+                        onClick={handlePostComment}
+                        disabled={!user || !newComment.trim() || isSubmittingComment}
+                        className="bg-[#0071e3] text-white px-4 py-2 rounded-full text-sm font-bold hover:bg-[#0077ed] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                      >
+                        {isSubmittingComment ? '发送中...' : '发送'}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Create Post Modal */}
       <AnimatePresence>
         {showPostModal && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center px-4">
@@ -333,11 +551,26 @@ export default function Community() {
                 </div>
               </div>
 
-              <div className="p-4 border-t border-gray-100 flex justify-end sticky bottom-0 bg-white z-10">
+              <div className="p-4 border-t border-gray-100 flex flex-col sm:flex-row items-center justify-between gap-4 sticky bottom-0 bg-white z-10">
+                <label className="flex items-center gap-2 cursor-pointer group">
+                  <div className={`w-5 h-5 rounded border flex items-center justify-center transition-colors ${agreedToGuidelines ? 'bg-[#0071e3] border-[#0071e3]' : 'border-gray-300 group-hover:border-[#0071e3]'}`}>
+                    {agreedToGuidelines && <CheckCircle className="w-3 h-3 text-white" />}
+                  </div>
+                  <input
+                    type="checkbox"
+                    className="hidden"
+                    checked={agreedToGuidelines}
+                    onChange={(e) => setAgreedToGuidelines(e.target.checked)}
+                  />
+                  <span className="text-sm text-gray-600">
+                    我已阅读并同意 <a href="/community-guidelines" target="_blank" rel="noopener noreferrer" className="text-[#0071e3] hover:underline" onClick={(e) => e.stopPropagation()}>《大神社区规范与免责声明》</a>
+                  </span>
+                </label>
+                
                 <button
                   onClick={handleCreatePost}
-                  disabled={isSubmitting || !title.trim() || !content.trim()}
-                  className="btn-primary px-8 py-2.5 rounded-full disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                  disabled={isSubmitting || !title.trim() || !content.trim() || !agreedToGuidelines}
+                  className="btn-primary px-8 py-2.5 rounded-full disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 w-full sm:w-auto"
                 >
                   {isSubmitting ? (
                     <>

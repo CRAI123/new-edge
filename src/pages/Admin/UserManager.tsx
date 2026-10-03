@@ -179,7 +179,12 @@ export default function UserManager() {
       downloadCount: user.download_count || 0,
       require_password_change: user.require_password_change
     };
+    // Force the useUserStore state to change to the target user's role exactly
     useUserStore.getState().setUser(profileToLogin);
+    // Specifically override the isAdmin flag if the target is NOT admin
+    if (profileToLogin.role !== 'admin') {
+      useUserStore.getState().setAdmin(false);
+    }
     showToast("success", `已强制登录为 ${user.full_name || user.email}`);
     navigate('/profile');
   };
@@ -219,6 +224,7 @@ export default function UserManager() {
 
   const roleMap: Record<string, string> = {
     "admin": "超级管理员",
+    "reviewer": "审核员",
     "teacher": "教师会员",
     "student": "学生会员",
     "individual": "个人会员",
@@ -280,6 +286,7 @@ export default function UserManager() {
             >
               <option value="all">全部身份</option>
               <option value="admin">管理员</option>
+              <option value="reviewer">审核员</option>
               <option value="teacher">教师</option>
               <option value="student">学生</option>
               <option value="individual">个人</option>
@@ -376,7 +383,7 @@ export default function UserManager() {
                             {s.label}
                           </span>
                           <span className="text-[10px] text-[#86868b] font-bold uppercase tracking-wider bg-[#f5f5f7] px-2.5 py-0.5 rounded-full">
-                            {roleMap[user.role] || user.role || "用户"}
+                            {roleMap[user.role] || "个人会员"}
                           </span>
                         </div>
                       </div>
@@ -498,6 +505,59 @@ export default function UserManager() {
                                 <LogIn className="w-4 h-4" />
                                 管理员远程免密登录
                               </button>
+                              <div className="col-span-2 flex gap-2 mt-1">
+                                <button
+                                  onClick={async () => {
+                                    if(confirm(`确定要将 ${user.full_name || '用户'} 设为审核员吗？`)) {
+                                      setSavingUserId(user.id);
+                                      // Prevent removing self admin privileges
+                                      if (user.role === 'admin' || user.email === 'studio@post.rayzo.cn') {
+                                        showToast('error', '不能修改管理员的角色');
+                                        setSavingUserId(null);
+                                        return;
+                                      }
+                                      
+                                      const { error } = await supabase.from('profiles').update({ role: 'reviewer' }).eq('id', user.id);
+                                      if (!error) {
+                                        showToast('success', '已设为审核员');
+                                        fetchUsers();
+                                      } else {
+                                        showToast('error', '设置失败，可能需要使用数据库管理员权限执行此操作');
+                                      }
+                                      setSavingUserId(null);
+                                    }
+                                  }}
+                                  className="flex-1 py-3 rounded-2xl bg-purple-50 border border-purple-200 text-purple-600 text-sm font-bold hover:bg-purple-100 transition-all flex items-center justify-center gap-1.5"
+                                >
+                                  设为审核员
+                                </button>
+                                <button
+                                  onClick={async () => {
+                                    if(confirm(`确定要将 ${user.full_name || '用户'} 设为普通用户吗？`)) {
+                                      setSavingUserId(user.id);
+                                      
+                                      // Prevent removing self admin privileges
+                                      if (user.role === 'admin' || user.email === 'studio@post.rayzo.cn') {
+                                        showToast('error', '不能修改管理员的角色');
+                                        setSavingUserId(null);
+                                        return;
+                                      }
+
+                                      const { error } = await supabase.from('profiles').update({ role: 'individual' }).eq('id', user.id);
+                                      if (!error) {
+                                        showToast('success', '已设为普通用户');
+                                        fetchUsers();
+                                      } else {
+                                        showToast('error', '设置失败');
+                                      }
+                                      setSavingUserId(null);
+                                    }
+                                  }}
+                                  className="flex-1 py-3 rounded-2xl bg-white border border-[#d2d2d7] text-[#1d1d1f] text-sm font-bold hover:bg-[#f5f5f7] transition-all flex items-center justify-center gap-1.5"
+                                >
+                                  设为普通用户
+                                </button>
+                              </div>
                             </>
                           )}
                         </div>

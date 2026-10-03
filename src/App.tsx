@@ -16,10 +16,8 @@ const Products = lazy(() => import("@/pages/Products"));
 const Team = lazy(() => import("@/pages/Team"));
 const Contact = lazy(() => import("@/pages/Contact"));
 const Resources = lazy(() => import("@/pages/Resources"));
-const Advice = lazy(() => import("@/pages/Advice"));
 const Printers = lazy(() => import("@/pages/Printers"));
-const Login = lazy(() => import("@/pages/Login"));
-const Register = lazy(() => import("@/pages/Register"));
+const Auth = lazy(() => import("@/pages/Auth"));
 const Privacy = lazy(() => import("@/pages/Privacy"));
 const Terms = lazy(() => import("@/pages/Terms"));
 const Sales = lazy(() => import("@/pages/Sales"));
@@ -30,11 +28,15 @@ const ResourceManager = lazy(() => import("@/pages/Admin/ResourceManager"));
 const UserManager = lazy(() => import("@/pages/Admin/UserManager"));
 const PrinterManager = lazy(() => import("@/pages/Admin/PrinterManager"));
 const AdminOrderManager = lazy(() => import("@/pages/Admin/OrderManager"));
+const ModerationManager = lazy(() => import("@/pages/Admin/ModerationManager"));
+const CommunityManager = lazy(() => import("@/pages/Admin/CommunityManager"));
+const LiveGallery = lazy(() => import("@/pages/Admin/LiveGallery"));
 const LogisticsTracker = lazy(() => import("@/pages/LogisticsTracker"));
 const OrderTrack = lazy(() => import("@/pages/OrderTrack"));
 const Profile = lazy(() => import("@/pages/Profile"));
 const Settings = lazy(() => import("@/pages/Settings"));
 const Community = lazy(() => import("@/pages/Community")); // 社区页面
+const CommunityGuidelines = lazy(() => import("@/pages/CommunityGuidelines")); // 社区规范
 
 // 懒加载占位 UI — 保持与现有视觉一致
 function PageSkeleton() {
@@ -69,12 +71,10 @@ function AnimatedRoutes() {
         <Route path="/" element={<motion.div {...pageTransition}><Home /></motion.div>} />
         <Route path="/products" element={<motion.div {...pageTransition}><Products /></motion.div>} />
         <Route path="/resources" element={<motion.div {...pageTransition}><Resources /></motion.div>} />
-        <Route path="/advice" element={<motion.div {...pageTransition}><Advice /></motion.div>} />
         <Route path="/printers" element={<motion.div {...pageTransition}><Printers /></motion.div>} />
         <Route path="/team" element={<motion.div {...pageTransition}><Team /></motion.div>} />
         <Route path="/contact" element={<motion.div {...pageTransition}><Contact /></motion.div>} />
-        <Route path="/login" element={<motion.div {...pageTransition}><Login /></motion.div>} />
-        <Route path="/register" element={<motion.div {...pageTransition}><Register /></motion.div>} />
+        <Route path="/auth" element={<motion.div {...pageTransition}><Auth /></motion.div>} />
         <Route path="/privacy" element={<motion.div {...pageTransition}><Privacy /></motion.div>} />
         <Route path="/terms" element={<motion.div {...pageTransition}><Terms /></motion.div>} />
         <Route path="/cookie-policy" element={<motion.div {...pageTransition}><CookiePolicy /></motion.div>} />
@@ -85,6 +85,7 @@ function AnimatedRoutes() {
         <Route path="/profile" element={<motion.div {...pageTransition}><Profile /></motion.div>} />
         <Route path="/settings" element={<motion.div {...pageTransition}><Settings /></motion.div>} />
         <Route path="/community" element={<motion.div {...pageTransition}><Community /></motion.div>} />
+        <Route path="/community-guidelines" element={<motion.div {...pageTransition}><CommunityGuidelines /></motion.div>} />
         
         {/* Admin Routes */}
         <Route path="/admin" element={<motion.div {...pageTransition}><AdminDashboard /></motion.div>} />
@@ -92,6 +93,9 @@ function AnimatedRoutes() {
         <Route path="/admin/users" element={<motion.div {...pageTransition}><UserManager /></motion.div>} />
         <Route path="/admin/printers" element={<motion.div {...pageTransition}><PrinterManager /></motion.div>} />
         <Route path="/admin/orders" element={<motion.div {...pageTransition}><AdminOrderManager /></motion.div>} />
+        <Route path="/admin/moderation" element={<motion.div {...pageTransition}><ModerationManager /></motion.div>} />
+        <Route path="/admin/community" element={<motion.div {...pageTransition}><CommunityManager /></motion.div>} />
+        <Route path="/admin/gallery" element={<motion.div {...pageTransition}><LiveGallery /></motion.div>} />
       </Routes>
     </AnimatePresence>
   );
