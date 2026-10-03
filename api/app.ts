@@ -17,6 +17,8 @@ import resourceRoutes from './routes/resources.js'
 import orderRoutes from './routes/orders.js'
 import productsRoutes from './routes/products.js'
 import logisticsRoutes from './routes/logistics.js'
+import folderRoutes from './routes/folders.js'
+import postsRoutes from './routes/posts.js'
 
 // for esm mode
 const __filename = fileURLToPath(import.meta.url)
@@ -40,6 +42,8 @@ app.use('/api/resources', resourceRoutes)
 app.use('/api/orders', orderRoutes)
 app.use('/api/products', productsRoutes)
 app.use('/api/logistics', logisticsRoutes)
+app.use('/api/folders', folderRoutes)
+app.use('/api/posts', postsRoutes)
 
 /**
  * health

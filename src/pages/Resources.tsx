@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import DocViewer, { DocViewerRenderers } from "@cyntler/react-doc-viewer";
-import { Download, FileText, Video, MessageSquare, Lock, X, BookOpen, GraduationCap, Lightbulb, Wrench, Eye, Loader2, AlertCircle, RefreshCw, Box } from "lucide-react";
+import { Download, FileText, Video, MessageSquare, Lock, X, BookOpen, GraduationCap, Lightbulb, Wrench, Eye, Loader2, AlertCircle, RefreshCw, Box, Folder, ChevronDown, ChevronRight } from "lucide-react";
 import { useUserStore } from "@/store/useUserStore";
 import { supabase } from "@/lib/supabase";
 import { showToast, safeConfirm } from "@/lib/utils";
@@ -16,7 +16,8 @@ interface ResourceItem {
   file_url: string;
   min_level: string;
   category?: string;
-  image_url?: string; // 新增预览图字段
+  image_url?: string;
+  folder_id?: string | null;
 }
 
 interface Category {
@@ -25,6 +26,11 @@ interface Category {
   description: string;
   icon: React.ReactNode;
   items: ResourceItem[];
+}
+
+interface FolderItem {
+  id: string;
+  name: string;
 }
 
 const CATEGORY_KEY_MAP: Record<string, string[]> = {
@@ -46,6 +52,8 @@ export default function Resources() {
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
   const [showCaptchaModal, setShowCaptchaModal] = useState<{ isOpen: boolean, action: 'download' | 'preview', item: ResourceItem | null }>({ isOpen: false, action: 'download', item: null });
+  const [folders, setFolders] = useState<FolderItem[]>([]);
+  const [expandedFolders, setExpandedFolders] = useState<string[]>([]);
 
   useEffect(() => {
     let timer: NodeJS.Timeout;
@@ -91,13 +99,32 @@ export default function Resources() {
   useEffect(() => {
     updateStats('browse');
     fetchResources();
+    fetchFolders();
   }, [updateStats]);
+
+  const fetchFolders = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('folders')
+        .select('id, name')
+        .order('name', { ascending: true });
+
+      if (error) throw error;
+      if (data) {
+        setFolders(data);
+        setExpandedFolders(data.map(f => f.id)); // Expand all by default
+      }
+    } catch (err: any) {
+      console.error('Error fetching folders:', err.message);
+    }
+  };
 
   const fetchResources = async () => {
     try {
       const { data, error } = await supabase
         .from('resources')
         .select('*')
+        .order('order_index', { ascending: true })
         .order('created_at', { ascending: false });
 
       if (error) throw error;
@@ -270,6 +297,133 @@ export default function Resources() {
     ? categories.filter(c => c.key === activeCategory)
     : categories;
 
+  const toggleFolderExpansion = (folderId: string) => {
+    setExpandedFolders(prev => 
+      prev.includes(folderId)
+        ? prev.filter(id => id !== folderId)
+        : [...prev, folderId]
+    );
+  };
+
+  const renderResourceCard = (item: ResourceItem) => {
+    const isLocked = !user;
+    return (
+      <motion.div
+        key={item.id}
+        initial={{ opacity: 0, y: 30 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true, margin: "-40px" }}
+        transition={{ duration: 0.6 }}
+        className="group relative bg-white rounded-3xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 border border-gray-100 flex flex-col cursor-pointer"
+        onClick={() => {
+          if (!isLocked) {
+            handlePreviewClick(item);
+          } else {
+            showToast("info", "请先登录后再预览。");
+          }
+        }}
+      >
+        <div className="aspect-[4/3] w-full overflow-hidden bg-[#f5f5f7] relative">
+          <div className="absolute inset-0 bg-gradient-to-br from-[#0071e3]/10 via-[#f5f5f7] to-[#28cd41]/10 flex items-center justify-center">
+            {item.file_type === 'MP4' ? (
+              <Video className="w-16 h-16 text-[#1d1d1f]/10" />
+            ) : item.file_type === 'STL' ? (
+              <Box className="w-16 h-16 text-[#1d1d1f]/10" />
+            ) : (
+              <FileText className="w-16 h-16 text-[#1d1d1f]/10" />
+            )}
+          </div>
+          
+          {item.image_url ? (
+            <img 
+              src={item.image_url} 
+              alt={item.title}
+              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 relative z-10"
+              onError={(e) => {
+                (e.target as HTMLImageElement).style.display = 'none';
+              }}
+            />
+          ) : (
+            <img 
+              src={`https://view.xdocin.com/view?src=${encodeURIComponent(item.file_url)}&p=1&pdf=true`}
+              alt={item.title}
+              className="w-full h-full object-cover object-top group-hover:scale-105 transition-transform duration-500 relative z-10"
+              onError={(e) => {
+                (e.target as HTMLImageElement).style.display = 'none';
+              }}
+            />
+          )}
+          
+          <div className="absolute top-4 right-4 z-10">
+            <div className="px-3 py-1.5 rounded-full text-xs font-bold flex items-center gap-1.5 backdrop-blur-md bg-white/90 shadow-sm text-gray-800">
+              {item.file_type === 'MP4' ? <Video className="w-3.5 h-3.5" /> : <FileText className="w-3.5 h-3.5" />}
+              {item.file_type.toUpperCase()}
+            </div>
+          </div>
+
+          <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center backdrop-blur-[2px]">
+            <button 
+              className="btn-primary rounded-full px-6 py-3 flex items-center gap-2 transform translate-y-4 group-hover:translate-y-0 transition-all duration-300 shadow-xl"
+              onClick={(e) => {
+                e.stopPropagation();
+                if (!isLocked) {
+                  handlePreviewClick(item);
+                } else {
+                  showToast("info", "请先登录后再预览。");
+                }
+              }}
+            >
+              {isLocked ? <Lock className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+              {isLocked ? "登录预览" : "立即预览"}
+            </button>
+          </div>
+        </div>
+
+        <div className="p-5 flex flex-col flex-grow">
+          <h3 className="text-[16px] font-bold text-[#111] leading-snug mb-3 line-clamp-2 group-hover:text-[#0071e3] transition-colors" title={item.title}>
+            {item.title}
+          </h3>
+          
+          <div className="mt-auto flex items-center justify-between text-xs text-gray-500">
+            <div className="flex items-center gap-2">
+              <span className="px-2 py-1 rounded bg-gray-100 font-medium">
+                Lv {item.min_level}
+              </span>
+            </div>
+            
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                handleDownloadClick(item);
+              }}
+              disabled={isLocked || downloadProgress?.id === item.id}
+              className={`relative overflow-hidden w-9 h-9 rounded-full flex items-center justify-center transition-all ${
+                isLocked 
+                  ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                  : downloadProgress?.id === item.id
+                    ? 'bg-blue-50 text-blue-600 cursor-wait'
+                    : 'bg-gray-50 hover:bg-black hover:text-white text-gray-600 shadow-sm'
+              }`}
+              title={isLocked ? '登录即可下载' : '直接下载'}
+            >
+              {downloadProgress?.id === item.id ? (
+                <div className="absolute inset-0 flex flex-col items-center justify-center bg-blue-50">
+                  <div 
+                    className="absolute bottom-0 left-0 right-0 bg-blue-200 transition-all duration-300"
+                    style={{ height: `${downloadProgress.progress}%` }}
+                  />
+                  <span className="relative z-10 text-[10px] font-bold text-blue-700">{downloadProgress.progress}%</span>
+                </div>
+              ) : (
+                isLocked ? <Lock className="w-4 h-4" /> : <Download className="w-4 h-4" />
+              )}
+            </button>
+          </div>
+        </div>
+      </motion.div>
+    );
+  };
+
   return (
     <div className="pt-24 min-h-screen">
       <section className="section-padding bg-white">
@@ -348,134 +502,78 @@ export default function Resources() {
                 </div>
                 
                 {category.items.length > 0 ? (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                    {category.items.map((item) => {
-                      const isLocked = !user;
+                  <div className="space-y-8">
+                    {/* Render folders first */}
+                    {folders.map(folder => {
+                      const folderItems = category.items.filter(item => item.folder_id === folder.id);
+                      if (folderItems.length === 0) return null;
+                      
+                      const isExpanded = expandedFolders.includes(folder.id);
+
                       return (
-                        <motion.div
-                          key={item.id}
-                          initial={{ opacity: 0, y: 30 }}
-                          whileInView={{ opacity: 1, y: 0 }}
-                          viewport={{ once: true, margin: "-40px" }}
-                          transition={{ duration: 0.6 }}
-                          className="group relative bg-white rounded-3xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 border border-gray-100 flex flex-col cursor-pointer"
-                          onClick={() => {
-                            if (!isLocked) {
-                              handlePreviewClick(item);
-                            } else {
-                              showToast("info", "请先登录后再预览。");
-                            }
-                          }}
-                        >
-                          {/* 大图预览区域 (模拟瀑布流卡片) */}
-                          <div className="aspect-[4/3] w-full overflow-hidden bg-[#f5f5f7] relative">
-                            {/* 使用一个非常轻量级的 SVG 作为默认背景，完全不依赖任何外部图片链接，保证 100% 成功加载 */}
-                            <div className="absolute inset-0 bg-gradient-to-br from-[#0071e3]/10 via-[#f5f5f7] to-[#28cd41]/10 flex items-center justify-center">
-                              {item.file_type === 'MP4' ? (
-                                <Video className="w-16 h-16 text-[#1d1d1f]/10" />
-                              ) : item.file_type === 'STL' ? (
-                                <Box className="w-16 h-16 text-[#1d1d1f]/10" />
-                              ) : (
-                                <FileText className="w-16 h-16 text-[#1d1d1f]/10" />
-                              )}
-                            </div>
-                            
-                            {/* 只有在有真实的自定义封面时才渲染 img 标签 */}
-                            {item.image_url ? (
-                              <img 
-                                src={item.image_url} 
-                                alt={item.title}
-                                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 relative z-10"
-                                onError={(e) => {
-                                  (e.target as HTMLImageElement).style.display = 'none';
-                                }}
-                              />
-                            ) : (
-                              // 使用 XDOC 的预览服务，强制传入页码 p=1 来获取第一页作为缩略图
-                              <img 
-                                src={`https://view.xdocin.com/view?src=${encodeURIComponent(item.file_url)}&p=1&pdf=true`}
-                                alt={item.title}
-                                className="w-full h-full object-cover object-top group-hover:scale-105 transition-transform duration-500 relative z-10"
-                                onError={(e) => {
-                                  // 如果由于跨域或文件不支持导致无法截取缩略图，静默隐藏，露出底部的渐变背景兜底
-                                  (e.target as HTMLImageElement).style.display = 'none';
-                                }}
-                              />
-                            )}
-                            
-                            {/* 悬浮遮罩 - 格式标签 */}
-                            <div className="absolute top-4 right-4 z-10">
-                              <div className="px-3 py-1.5 rounded-full text-xs font-bold flex items-center gap-1.5 backdrop-blur-md bg-white/90 shadow-sm text-gray-800">
-                                {item.file_type === 'MP4' ? <Video className="w-3.5 h-3.5" /> : <FileText className="w-3.5 h-3.5" />}
-                                {item.file_type.toUpperCase()}
+                        <div key={folder.id} className="relative bg-[#fcfcfd] rounded-3xl border border-[#0071e3]/20 overflow-hidden shadow-[0_0_20px_rgba(0,113,227,0.1)] hover:shadow-[0_0_30px_rgba(0,113,227,0.2)] hover:border-[#0071e3]/40 transition-all duration-300 group/folder">
+                          {/* 顶部流光渐变线 */}
+                          <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-[#0071e3] via-[#32d74b] to-[#0071e3] opacity-70 group-hover/folder:opacity-100 transition-opacity duration-300"></div>
+                          
+                          <div 
+                            className="px-6 py-5 flex items-center justify-between cursor-pointer hover:bg-blue-50/50 transition-colors relative z-10"
+                            onClick={() => toggleFolderExpansion(folder.id)}
+                          >
+                            <div className="flex items-center gap-4">
+                              <div className="w-10 h-10 rounded-xl bg-blue-50 text-[#0071e3] flex items-center justify-center">
+                                <Folder className="w-5 h-5" />
+                              </div>
+                              <div>
+                                <h3 className="text-lg font-bold text-[#1d1d1f]">{folder.name}</h3>
+                                <p className="text-xs text-[#86868b]">{folderItems.length} 个资源</p>
                               </div>
                             </div>
-
-                            {/* 悬浮状态 - 预览按钮 */}
-                            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center backdrop-blur-[2px]">
-                              <button 
-                                className="btn-primary rounded-full px-6 py-3 flex items-center gap-2 transform translate-y-4 group-hover:translate-y-0 transition-all duration-300 shadow-xl"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  if (!isLocked) {
-                                    handlePreviewClick(item);
-                                  } else {
-                                    showToast("info", "请先登录后再预览。");
-                                  }
-                                }}
-                              >
-                                {isLocked ? <Lock className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-                                {isLocked ? "登录预览" : "立即预览"}
-                              </button>
-                            </div>
+                            <button className="text-gray-400 hover:text-gray-600 transition-colors">
+                              {isExpanded ? <ChevronDown className="w-5 h-5" /> : <ChevronRight className="w-5 h-5" />}
+                            </button>
                           </div>
-
-                          {/* 极简信息区域 */}
-                          <div className="p-5 flex flex-col flex-grow">
-                            <h3 className="text-[16px] font-bold text-[#111] leading-snug mb-3 line-clamp-2 group-hover:text-[#0071e3] transition-colors" title={item.title}>
-                              {item.title}
-                            </h3>
-                            
-                            <div className="mt-auto flex items-center justify-between text-xs text-gray-500">
-                              <div className="flex items-center gap-2">
-                                <span className="px-2 py-1 rounded bg-gray-100 font-medium">
-                                  Lv {item.min_level}
-                                </span>
+                          
+                          {isExpanded && (
+                            <div className="p-6 pt-0 border-t border-gray-100 mt-4">
+                              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 mt-6">
+                                {folderItems.map(item => renderResourceCard(item))}
                               </div>
-                              
-                              {/* 下载按钮 */}
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleDownloadClick(item);
-                                }}
-                                disabled={isLocked || downloadProgress?.id === item.id}
-                                className={`relative overflow-hidden w-9 h-9 rounded-full flex items-center justify-center transition-all ${
-                                  isLocked 
-                                    ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                                    : downloadProgress?.id === item.id
-                                      ? 'bg-blue-50 text-blue-600 cursor-wait'
-                                      : 'bg-gray-50 hover:bg-black hover:text-white text-gray-600 shadow-sm'
-                                }`}
-                                title={isLocked ? '登录即可下载' : '直接下载'}
-                              >
-                                {downloadProgress?.id === item.id ? (
-                                  <div className="absolute inset-0 flex flex-col items-center justify-center bg-blue-50">
-                                    <div 
-                                      className="absolute bottom-0 left-0 right-0 bg-blue-200 transition-all duration-300"
-                                      style={{ height: `${downloadProgress.progress}%` }}
-                                    />
-                                    <span className="relative z-10 text-[10px] font-bold text-blue-700">{downloadProgress.progress}%</span>
-                                  </div>
-                                ) : (
-                                  isLocked ? <Lock className="w-4 h-4" /> : <Download className="w-4 h-4" />
-                                )}
-                              </button>
                             </div>
-                          </div>
-                        </motion.div>
+                          )}
+                        </div>
                       );
                     })}
+
+                    {/* Render unassigned resources */}
+                    {(() => {
+                      const unassignedItems = category.items.filter(item => !item.folder_id);
+                      if (unassignedItems.length === 0) return null;
+
+                      // If there are folders, wrap unassigned items in a generic container or just list them
+                      // We'll just list them directly in the grid below folders for simplicity on the user facing page
+                      // or put them in an "Other Resources" block if there are folders.
+                      const hasFoldersWithItems = folders.some(f => category.items.some(i => i.folder_id === f.id));
+                      
+                      if (hasFoldersWithItems) {
+                         return (
+                            <div className="mt-8">
+                               <h3 className="text-lg font-bold text-[#1d1d1f] mb-6 flex items-center gap-2">
+                                  <FileText className="w-5 h-5 text-gray-400" /> 
+                                  其他资源
+                               </h3>
+                               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                                  {unassignedItems.map(item => renderResourceCard(item))}
+                               </div>
+                            </div>
+                         )
+                      }
+
+                      return (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                          {unassignedItems.map(item => renderResourceCard(item))}
+                        </div>
+                      );
+                    })()}
                   </div>
                 ) : (
                   <div className="py-16 text-center rounded-3xl bg-[#f5f5f7] border border-dashed border-[#d2d2d7] shimmer-card">

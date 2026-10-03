@@ -1,6 +1,9 @@
 /**
  * local server entry file, for local development
  */
+import dotenv from 'dotenv'; // Import dotenv
+dotenv.config(); // Load environment variables
+
 import app from './app.js';
 
 

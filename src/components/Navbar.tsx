@@ -52,6 +52,7 @@ export default function Navbar() {
         <Link to="/printers" onClick={() => setIsMobileMenuOpen(false)} className="hover:text-[#0071e3] transition-colors nav-link-scan">设备方案</Link>
         <Link to="/products" onClick={() => setIsMobileMenuOpen(false)} className="hover:text-[#0071e3] transition-colors nav-link-scan">原创周边</Link>
         <Link to="/resources" onClick={() => setIsMobileMenuOpen(false)} className="hover:text-[#0071e3] transition-colors nav-link-scan">课件资源</Link>
+        <Link to="/community" onClick={() => setIsMobileMenuOpen(false)} className="hover:text-[#0071e3] transition-colors nav-link-scan">大神社区</Link>
         <Link to="/advice" onClick={() => setIsMobileMenuOpen(false)} className="hover:text-[#0071e3] transition-colors nav-link-scan">创作工具</Link>
         <Link to="/team" onClick={() => setIsMobileMenuOpen(false)} className="hover:text-[#0071e3] transition-colors nav-link-scan">关于我们</Link>
         {isAdmin && (
@@ -187,6 +188,10 @@ export default function Navbar() {
                 </Link>
                 <Link to="/resources" onClick={toggleMobileMenu} className="flex items-center justify-between p-4 rounded-2xl bg-[#f5f5f7]/50 hover:bg-[#f5f5f7] active:bg-[#e5e5ea] transition-all text-[17px] font-semibold text-[#1d1d1f]">
                   课件资源
+                  <ChevronDown className="w-5 h-5 -rotate-90 text-[#86868b]" />
+                </Link>
+                <Link to="/community" onClick={toggleMobileMenu} className="flex items-center justify-between p-4 rounded-2xl bg-[#f5f5f7]/50 hover:bg-[#f5f5f7] active:bg-[#e5e5ea] transition-all text-[17px] font-semibold text-[#1d1d1f]">
+                  大神社区
                   <ChevronDown className="w-5 h-5 -rotate-90 text-[#86868b]" />
                 </Link>
                 <Link to="/advice" onClick={toggleMobileMenu} className="flex items-center justify-between p-4 rounded-2xl bg-[#f5f5f7]/50 hover:bg-[#f5f5f7] active:bg-[#e5e5ea] transition-all text-[17px] font-semibold text-[#1d1d1f]">

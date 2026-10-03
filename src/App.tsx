@@ -34,6 +34,7 @@ const LogisticsTracker = lazy(() => import("@/pages/LogisticsTracker"));
 const OrderTrack = lazy(() => import("@/pages/OrderTrack"));
 const Profile = lazy(() => import("@/pages/Profile"));
 const Settings = lazy(() => import("@/pages/Settings"));
+const Community = lazy(() => import("@/pages/Community")); // 社区页面
 
 // 懒加载占位 UI — 保持与现有视觉一致
 function PageSkeleton() {
@@ -83,6 +84,7 @@ function AnimatedRoutes() {
         <Route path="/order/:orderNo" element={<motion.div {...pageTransition}><OrderTrack /></motion.div>} />
         <Route path="/profile" element={<motion.div {...pageTransition}><Profile /></motion.div>} />
         <Route path="/settings" element={<motion.div {...pageTransition}><Settings /></motion.div>} />
+        <Route path="/community" element={<motion.div {...pageTransition}><Community /></motion.div>} />
         
         {/* Admin Routes */}
         <Route path="/admin" element={<motion.div {...pageTransition}><AdminDashboard /></motion.div>} />
