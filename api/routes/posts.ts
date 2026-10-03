@@ -1,16 +1,17 @@
-﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿import express, { type Request, type Response } from 'express';
+﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿import express, { type Request, type Response } from 'express';
 import { createClient } from '@supabase/supabase-js';
 import dotenv from 'dotenv';
 import fetch from 'node-fetch';
 dotenv.config();
 
-const SUPABASE_URL = process.env.SUPABASE_URL as string;
-const SUPABASE_KEY = process.env.SUPABASE_KEY as string;
-const OPENAI_BASE_URL = process.env.OPENAI_BASE_URL || 'https://api.openai.com/v1';
-const OPENAI_API_KEY = process.env.OPENAI_API_KEY as string;
+// Constants are evaluated dynamically inside functions to support serverless hot-reloading
+const getSupabaseUrl = () => process.env.SUPABASE_URL as string;
+const getSupabaseKey = () => process.env.SUPABASE_KEY as string;
+const getOpenAIBaseUrl = () => process.env.OPENAI_BASE_URL || 'https://api.openai.com/v1';
+const getOpenAIApiKey = () => process.env.OPENAI_API_KEY as string;
 
 // Initialize Supabase admin client (since this is backend, we use the service role key)
-const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_KEY);
+const supabaseAdmin = createClient(process.env.SUPABASE_URL as string, process.env.SUPABASE_KEY as string);
 
 const router = express.Router();
 
@@ -48,8 +49,11 @@ async function triggerAIModeration(postId: string, mediaUrls: string[], postCont
   try {
     console.log(`[AI Moderation] Started for post ${postId}`);
     
+    const apiKey = getOpenAIApiKey();
+    const baseUrl = getOpenAIBaseUrl();
+
     // 如果没有配置 API Key，退回到自动拦截
-    if (!OPENAI_API_KEY) {
+    if (!apiKey) {
       console.log(`[AI Moderation] No API key found, defaulting to manual review`);
       await userSupabase.from('posts').update({ status: 'pending_manual', moderation_reason: '未配置AI审核密钥，已转交人工审核' }).eq('id', postId);
       await userSupabase.from('post_media').update({ status: 'pending_manual', moderation_reason: '未配置AI审核密钥，已转交人工审核' }).eq('post_id', postId);
@@ -88,11 +92,11 @@ async function triggerAIModeration(postId: string, mediaUrls: string[], postCont
       });
     }
 
-    const response = await fetch(`${OPENAI_BASE_URL}/chat/completions`, {
+    const response = await fetch(`${baseUrl}/chat/completions`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${OPENAI_API_KEY}`
+        'Authorization': `Bearer ${apiKey}`
       },
       body: JSON.stringify({
         model: "qwen3.8-max", // 你的可用列表中有这个强大的模型
@@ -152,7 +156,7 @@ router.post('/', async (req: Request, res: Response) => {
     if (!authHeader) return res.status(401).json({ error: 'No authorization header' });
 
     // Use user's JWT to authenticate the request to Supabase
-    const userSupabase = createClient(SUPABASE_URL, SUPABASE_KEY, {
+    const userSupabase = createClient(getSupabaseUrl(), getSupabaseKey(), {
       global: { headers: { Authorization: authHeader } }
     });
 
@@ -192,10 +196,10 @@ router.post('/', async (req: Request, res: Response) => {
       if (mediaError) throw mediaError;
     }
 
-    // 3. Trigger AI Moderation Async
-    triggerAIModeration(postData.id, mediaUrls || [], `${title}\n${content}`, userSupabase);
+    // 3. Trigger AI Moderation synchronously to prevent Vercel serverless function from freezing
+    await triggerAIModeration(postData.id, mediaUrls || [], `${title}\n${content}`, userSupabase);
 
-    res.status(201).json({ success: true, data: postData, message: '发布成功，内容正在等待AI审核...' });
+    res.status(201).json({ success: true, data: postData, message: '发布成功，内容已进入智能审核' });
   } catch (error: any) {
     res.status(500).json({ success: false, error: error.message });
   }
@@ -208,7 +212,7 @@ router.post('/retry-moderation', async (req: Request, res: Response) => {
     if (!authHeader) return res.status(401).json({ error: 'No authorization header' });
 
     // 只能由拥有管理员/审核员权限的请求调用
-    const userSupabase = createClient(SUPABASE_URL, SUPABASE_KEY, {
+    const userSupabase = createClient(getSupabaseUrl(), getSupabaseKey(), {
       global: { headers: { Authorization: authHeader } }
     });
 
