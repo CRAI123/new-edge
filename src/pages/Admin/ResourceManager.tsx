@@ -38,6 +38,7 @@ interface Resource {
   status?: 'draft' | 'published';
   folder_id?: string | null;
   order_index?: number;
+  cover_url?: string | null;
 }
 
 interface FolderItem {
@@ -70,6 +71,50 @@ export default function ResourceManager() {
   const [showEditModal, setShowEditModal] = useState(false);
   const [editingResource, setEditingResource] = useState<Resource | null>(null);
   const [expandedFolders, setExpandedFolders] = useState<string[]>(['unassigned']);
+  const [isGeneratingCover, setIsGeneratingCover] = useState(false);
+  const [isBatchGenerating, setIsBatchGenerating] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+
+  const generateCoverForResource = async (title: string, folderId: string | null | undefined, extraPrompt = "") => {
+    let folderName = "";
+    if (folderId) {
+      const folder = folders.find(f => f.id === folderId);
+      if (folder) folderName = folder.name;
+    }
+    const res = await requestResourceApi<{ url: string }>("/api/resources/generate-cover", {
+      method: "POST",
+      body: JSON.stringify({ folder_name: folderName, resource_title: title, extra_prompt: extraPrompt }),
+    });
+    return res?.url;
+  };
+
+  const handleGenerateSelectedCovers = async () => {
+    const toGenerate = resources.filter(r => selectedIds.has(r.id));
+    if (toGenerate.length === 0) return;
+
+    if (!safeConfirm(`确定要为选中的 ${toGenerate.length} 个课件生成封面吗？这可能需要一些时间。`)) return;
+
+    setIsBatchGenerating(true);
+    let successCount = 0;
+    for (const res of toGenerate) {
+      try {
+        const coverUrl = await generateCoverForResource(res.title, res.folder_id);
+        if (coverUrl) {
+          await requestResourceApi(`/api/resources/${res.id}`, {
+            method: "PATCH",
+            body: JSON.stringify({ cover_url: coverUrl }),
+          });
+          setResources(prev => prev.map(r => r.id === res.id ? { ...r, cover_url: coverUrl } : r));
+          successCount++;
+        }
+      } catch (err: any) {
+        console.error(`生成封面失败 [${res.title}]:`, err.message);
+      }
+    }
+    setIsBatchGenerating(false);
+    setSelectedIds(new Set()); // 清空选中状态
+    showToast("success", `生成完毕，成功生成 ${successCount}/${toGenerate.length} 个封面。`);
+  };
 
   useEffect(() => {
     fetchResources();
@@ -201,7 +246,23 @@ export default function ResourceManager() {
       <table className="w-full text-left">
         <thead>
           <tr className="border-b border-[#f5f5f7] bg-white">
-            <th className="px-8 py-5 text-sm font-bold text-[#1d1d1f]">排序</th>
+            <th className="px-6 py-5 w-14 text-center">
+              <input 
+                type="checkbox" 
+                checked={resList.length > 0 && resList.every(r => selectedIds.has(r.id))}
+                onChange={(e) => {
+                  const newSet = new Set(selectedIds);
+                  if (e.target.checked) {
+                    resList.forEach(r => newSet.add(r.id));
+                  } else {
+                    resList.forEach(r => newSet.delete(r.id));
+                  }
+                  setSelectedIds(newSet);
+                }}
+                className="w-4 h-4 rounded border-gray-300 text-[#0071e3] focus:ring-[#0071e3] cursor-pointer"
+              />
+            </th>
+            <th className="px-4 py-5 text-sm font-bold text-[#1d1d1f]">排序</th>
             <th className="px-8 py-5 text-sm font-bold text-[#1d1d1f]">资源名称</th>
             <th className="px-6 py-5 text-sm font-bold text-[#1d1d1f]">分类</th>
             <th className="px-6 py-5 text-sm font-bold text-[#1d1d1f]">类型</th>
@@ -215,7 +276,20 @@ export default function ResourceManager() {
         <tbody className="divide-y divide-[#f5f5f7]">
           {resList.map((res, index) => (
             <tr key={res.id} className="hover:bg-[#fafafa] transition-colors group bg-white">
-              <td className="px-8 py-5">
+              <td className="px-6 py-5 text-center" onClick={(e) => e.stopPropagation()}>
+                <input 
+                  type="checkbox"
+                  checked={selectedIds.has(res.id)}
+                  onChange={(e) => {
+                    const newSet = new Set(selectedIds);
+                    if (e.target.checked) newSet.add(res.id);
+                    else newSet.delete(res.id);
+                    setSelectedIds(newSet);
+                  }}
+                  className="w-4 h-4 rounded border-gray-300 text-[#0071e3] focus:ring-[#0071e3] cursor-pointer"
+                />
+              </td>
+              <td className="px-4 py-5">
                 <div className="flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                   <button 
                     onClick={() => handleMoveUp(index, resList)}
@@ -237,9 +311,13 @@ export default function ResourceManager() {
               </td>
               <td className="px-8 py-5">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-blue-50 text-[#0071e3] flex items-center justify-center">
-                    <FileText className="w-5 h-5" />
-                  </div>
+                  {res.cover_url ? (
+                    <img src={res.cover_url} alt={res.title} className="w-10 h-10 rounded-xl object-cover" />
+                  ) : (
+                    <div className="w-10 h-10 rounded-xl bg-blue-50 text-[#0071e3] flex items-center justify-center">
+                      <FileText className="w-5 h-5" />
+                    </div>
+                  )}
                   <span className="font-medium text-[#1d1d1f]">{res.title}</span>
                 </div>
               </td>
@@ -392,16 +470,18 @@ export default function ResourceManager() {
 
     const form = e.currentTarget as HTMLFormElement;
     const formData = new FormData(form);
+    const newTitle = formData.get('title') as string;
     const newFolderId = formData.get('folder_id') as string || null;
+    const coverUrl = formData.get('cover_url') as string;
 
     try {
       await requestResourceApi<Resource>(`/api/resources/${editingResource.id}`, {
         method: "PATCH",
-        body: JSON.stringify({ folder_id: newFolderId }),
+        body: JSON.stringify({ title: newTitle, folder_id: newFolderId, cover_url: coverUrl }),
       });
 
       setResources(prev => prev.map(r => 
-        r.id === editingResource.id ? { ...r, folder_id: newFolderId } : r
+        r.id === editingResource.id ? { ...r, title: newTitle, folder_id: newFolderId, cover_url: coverUrl } : r
       ));
       showToast("success", "资源文件夹更新成功");
       setShowEditModal(false);
@@ -478,6 +558,7 @@ export default function ResourceManager() {
       const category = formData.get('category') as string;
       const minLevel = (formData.get('level') as string).split(' ')[0];
       const folderId = formData.get('folder_id') as string;
+      const autoGenerateCover = formData.get('auto_generate_cover') === 'on';
 
       // 2. 上传文件到 Supabase Storage (使用公共权限绕过 Auth Session 校验)
       const fileExt = selectedFile.name.split('.').pop();
@@ -507,7 +588,19 @@ export default function ResourceManager() {
         .getPublicUrl(filePath);
       console.log("文件公共 URL:", publicUrl);
 
-      // 4. 插入元数据到数据库
+      // 4. Generate AI cover if selected
+      let generatedCoverUrl = null;
+      if (autoGenerateCover) {
+        try {
+          generatedCoverUrl = await generateCoverForResource(title || selectedFile.name, folderId);
+          console.log("AI 封面生成成功:", generatedCoverUrl);
+        } catch (err: any) {
+          console.warn("AI 封面生成失败, 继续保存资源:", err.message);
+        }
+      }
+      setUploadProgress(85);
+
+      // 5. 插入元数据到数据库
       const newResource = {
         title: title || selectedFile.name,
         category: category,
@@ -517,6 +610,7 @@ export default function ResourceManager() {
         min_level: minLevel,
         status: 'published',
         folder_id: folderId || null,
+        cover_url: generatedCoverUrl
       };
 
       console.log("正在写入数据库记录...", newResource);
@@ -618,6 +712,16 @@ export default function ResourceManager() {
             </p>
           </div>
           <div className="flex items-center gap-3 self-start md:self-auto">
+            {selectedIds.size > 0 && (
+              <button 
+                onClick={handleGenerateSelectedCovers}
+                disabled={isBatchGenerating}
+                className={`bg-white hover:bg-emerald-50 text-[#1d1d1f] flex items-center gap-2 px-6 py-3 rounded-full font-bold shadow-sm transition-all border border-emerald-200 ${isBatchGenerating ? 'opacity-50 cursor-not-allowed' : ''}`}
+              >
+                <Zap className="w-5 h-5 text-emerald-500" />
+                {isBatchGenerating ? '生成中...' : `生成所选封面 (${selectedIds.size})`}
+              </button>
+            )}
             <button 
               onClick={() => setShowFolderModal(true)}
               className="bg-white hover:bg-gray-50 text-[#1d1d1f] flex items-center gap-2 px-6 py-3 rounded-full font-bold shadow-sm transition-all border border-gray-200"
@@ -840,6 +944,20 @@ export default function ResourceManager() {
                 </select>
               </div>
 
+              <div className="flex items-center gap-3 p-4 rounded-xl bg-[#f5f5f7]">
+                <input 
+                  type="checkbox" 
+                  id="auto_generate_cover"
+                  name="auto_generate_cover" 
+                  defaultChecked
+                  className="w-5 h-5 rounded border-gray-300 text-[#0071e3] focus:ring-[#0071e3]"
+                />
+                <label htmlFor="auto_generate_cover" className="text-sm font-medium text-[#1d1d1f] flex items-center gap-2">
+                  <Zap className="w-4 h-4 text-emerald-500" />
+                  上传成功后使用 AI 自动生成课件封面
+                </label>
+              </div>
+
               <div>
                 <label className="block text-sm font-medium mb-2 text-[#1d1d1f]">文件上传</label>
                 <input 
@@ -920,6 +1038,61 @@ export default function ResourceManager() {
             <h2 className="text-2xl font-bold mb-8 text-[#1d1d1f]">编辑资源：{editingResource.title}</h2>
             
             <form onSubmit={handleUpdateResource} className="space-y-6">
+              <div>
+                <label className="block text-sm font-medium mb-2 text-[#1d1d1f]">课件名称</label>
+                <input 
+                  required
+                  name="title"
+                  type="text" 
+                  defaultValue={editingResource.title}
+                  className="w-full px-4 py-3 rounded-xl bg-[#f5f5f7] border-transparent focus:bg-white focus:border-[#0071e3] focus:ring-4 focus:ring-[#0071e3]/10 outline-none transition-all"
+                  placeholder="输入课件名称..."
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium mb-2 text-[#1d1d1f]">课件封面</label>
+                <div className="flex gap-4 items-end">
+                  <div className="w-24 h-24 rounded-2xl bg-gray-100 flex items-center justify-center overflow-hidden shrink-0 border border-gray-200">
+                    {editingResource.cover_url ? (
+                      <img src={editingResource.cover_url} alt="Cover" className="w-full h-full object-cover" />
+                    ) : (
+                      <FileText className="w-8 h-8 text-gray-400" />
+                    )}
+                  </div>
+                  <div className="flex-1 space-y-2">
+                    <input 
+                      name="cover_url"
+                      type="text" 
+                      defaultValue={editingResource.cover_url || ""}
+                      className="w-full px-4 py-3 rounded-xl bg-[#f5f5f7] border-transparent focus:bg-white focus:border-[#0071e3] focus:ring-4 focus:ring-[#0071e3]/10 outline-none transition-all text-sm"
+                      placeholder="封面图片 URL"
+                    />
+                    <button
+                      type="button"
+                      disabled={isGeneratingCover}
+                      onClick={async () => {
+                        setIsGeneratingCover(true);
+                        try {
+                          const url = await generateCoverForResource(editingResource.title, editingResource.folder_id);
+                          if (url) {
+                            setEditingResource({ ...editingResource, cover_url: url });
+                          }
+                        } catch (err: any) {
+                          showToast("error", "生成失败: " + err.message);
+                        } finally {
+                          setIsGeneratingCover(false);
+                        }
+                      }}
+                      className="flex items-center gap-2 text-sm font-bold text-emerald-600 hover:text-emerald-700 bg-emerald-50 px-4 py-2 rounded-lg"
+                    >
+                      <Zap className="w-4 h-4" />
+                      {isGeneratingCover ? "AI 生成中..." : "使用 AI 自动生成"}
+                    </button>
+                  </div>
+                </div>
+              </div>
+
               <div>
                 <label className="block text-sm font-medium mb-2 text-[#1d1d1f]">所属文件夹</label>
                 <select 

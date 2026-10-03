@@ -93,6 +93,7 @@ router.post('/', async (req: AuthedRequest, res: Response) => {
     min_level,
     status = 'published',
     folder_id,
+    cover_url,
   } = req.body
 
   if (!title || !file_url || !min_level) {
@@ -125,6 +126,7 @@ router.post('/', async (req: AuthedRequest, res: Response) => {
         min_level,
         status: normalizedStatus,
         folder_id,
+        cover_url,
         order_index: Date.now(), // default to current timestamp for order
       },
     ])
@@ -198,7 +200,7 @@ router.patch('/:id', async (req: AuthedRequest, res: Response) => {
   if (!(await requireAdmin(req, res))) return
 
   const { id } = req.params
-  const { title, category, file_type, file_url, downloads, min_level, status, folder_id } = req.body
+  const { title, category, file_type, file_url, downloads, min_level, status, folder_id, cover_url } = req.body
 
   const updatePayload: Record<string, any> = {
     updated_at: new Date().toISOString()
@@ -212,6 +214,7 @@ router.patch('/:id', async (req: AuthedRequest, res: Response) => {
   if (min_level) updatePayload.min_level = min_level;
   if (status) updatePayload.status = status;
   if (folder_id !== undefined) updatePayload.folder_id = folder_id;
+  if (cover_url !== undefined) updatePayload.cover_url = cover_url;
   if (req.body.order_index !== undefined) updatePayload.order_index = req.body.order_index;
 
   const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
@@ -345,6 +348,90 @@ router.delete('/:id', async (req: AuthedRequest, res: Response) => {
     success: true,
     data: { id },
   })
+})
+
+router.post('/generate-cover', async (req: AuthedRequest, res: Response) => {
+  if (!(await requireAdmin(req, res))) return
+
+  const { folder_name, resource_title, extra_prompt } = req.body
+
+  if (!resource_title) {
+    res.status(400).json({ success: false, error: '缺少课件名(resource_title)' })
+    return
+  }
+
+  const basePrompt = `作为专业的资深教育课件UI设计师，请设计一张高质量的课件封面图。系列名（文件夹名）：${folder_name || '无'}，本课主题（课件名）：${resource_title}。${extra_prompt ? '额外要求：' + extra_prompt : ''}`
+  const fullPrompt = `${basePrompt}
+严格排版与视觉要求：
+1. 【整体风格】主题色调必须是清新的浅绿色，辅以白色或相近的柔和色彩过渡。尺寸比例为严格的 1:1，整体必须具备极强的科技感、现代感和专业教育属性。
+2. 【视觉层级-左上角】系列名（${folder_name || '无'}）必须作为副标题放置在画面的左上角，字体要小而精致。
+3. 【视觉层级-正中央】本课主题（${resource_title}）是画面的绝对视觉中心，必须以最大、最粗的字号醒目地居中显示在画面正中央。文字周围要有适当的呼吸空间，切忌拥挤。
+4. 【视觉层级-主题下方】如果课件名中包含课程编号（如"01"、"第一课"、"Unit 1"等），请将其单独提取并清晰、优雅地排列在本课主题的正下方。
+5. 【视觉层级-底部】画面的正下方（底部边缘居中或偏右）必须包含品牌名"Rayzo"以及标语"让科创教育触手可及"。
+6. 【图形元素】请在背景中巧妙融入一些与"3D打印、编程、科创、教育"相关的抽象几何图形或极简的3D线框元素，但必须做虚化或低对比度处理，绝不能喧宾夺主。
+7. 【避错原则】画面排版必须整洁大气，确保所有文字内容极其清晰易读。严禁在文字背后添加杂乱的背景元素，严禁生成无意义的乱码文字。`
+
+  const AI_API_KEY = process.env.IMAGE_AI_API_KEY || 'sk-ltZCJaWJvXLRAcOuMMSR1SZkEgJfL256n5ztnxUgXV93IQL0'
+  const AI_API_URL = process.env.IMAGE_AI_API_URL || 'https://3hdmx.com/v1/images/generations'
+
+  try {
+    const response = await fetch(AI_API_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${AI_API_KEY}`
+      },
+      body: JSON.stringify({
+        model: 'gpt-image-2',
+        prompt: fullPrompt,
+        n: 1,
+        size: '1024x1024'
+      })
+    })
+
+    if (!response.ok) {
+      const errText = await response.text()
+      throw new Error(`AI API 错误 (${response.status}): ${errText}`)
+    }
+
+    const result = await response.json()
+    console.log('AI API Response keys:', Object.keys(result));
+    
+    // 兼容返回 url 或者 base64 的情况
+    let imageUrl = result.data?.[0]?.url
+    
+    if (!imageUrl && result.data?.[0]?.b64_json) {
+      // 如果返回的是 base64 数据，需要将其转换为可展示的 data URI
+      imageUrl = `data:image/png;base64,${result.data[0].b64_json}`;
+    }
+    
+    if (!imageUrl && result.choices?.[0]?.message?.content) {
+      // 尝试从 Markdown 格式的文本中提取图片 URL：![image](https://...)
+      const content = result.choices[0].message.content;
+      const match = content.match(/!\[.*?\]\((.*?)\)/);
+      if (match && match[1]) {
+        imageUrl = match[1];
+      } else if (content.startsWith('http')) {
+        // 或者直接返回的是链接
+        imageUrl = content.trim();
+      }
+    }
+
+    if (!imageUrl) {
+      throw new Error(`AI API 未返回图片 URL。完整响应: ${JSON.stringify(result)}`)
+    }
+
+    res.status(200).json({
+      success: true,
+      data: { url: imageUrl }
+    })
+  } catch (err: any) {
+    console.error('Generate cover error:', err)
+    res.status(500).json({
+      success: false,
+      error: `生成封面失败: ${err.message}`
+    })
+  }
 })
 
 export default router

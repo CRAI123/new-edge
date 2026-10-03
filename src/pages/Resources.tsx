@@ -16,7 +16,7 @@ interface ResourceItem {
   file_url: string;
   min_level: string;
   category?: string;
-  image_url?: string;
+  cover_url?: string | null;
   folder_id?: string | null;
 }
 
@@ -323,7 +323,7 @@ export default function Resources() {
           }
         }}
       >
-        <div className="aspect-[4/3] w-full overflow-hidden bg-[#f5f5f7] relative">
+        <div className="aspect-square w-full overflow-hidden bg-[#f5f5f7] relative">
           <div className="absolute inset-0 bg-gradient-to-br from-[#0071e3]/10 via-[#f5f5f7] to-[#28cd41]/10 flex items-center justify-center">
             {item.file_type === 'MP4' ? (
               <Video className="w-16 h-16 text-[#1d1d1f]/10" />
@@ -334,9 +334,9 @@ export default function Resources() {
             )}
           </div>
           
-          {item.image_url ? (
+          {item.cover_url ? (
             <img 
-              src={item.image_url} 
+              src={item.cover_url} 
               alt={item.title}
               className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 relative z-10"
               onError={(e) => {

@@ -1,14 +1,16 @@
 import { useState, useEffect, useRef } from "react";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { useUserStore } from "@/store/useUserStore";
 import { supabase } from "@/lib/supabase";
-import { User, Activity, Clock, ShieldCheck, Mail, LogIn, MousePointerClick, Download, Layers, Camera, X, Sparkles, Plane } from "lucide-react";
+import { User, Activity, Clock, ShieldCheck, Mail, LogIn, MousePointerClick, Download, Layers, Camera, X, Sparkles, Plane, FileText, Image as ImageIcon, Eye, Heart, MessageCircle, MoreVertical, Trash2 } from "lucide-react";
 import MemberBadge from "@/components/Badge/MemberBadge";
 import { useNavigate } from "react-router-dom";
 import { format } from "date-fns";
 import html2canvas from "html2canvas";
 import { createPortal } from "react-dom";
 import { showToast } from "@/lib/utils";
+// 移除不存在的 STLViewer 导入
+// import { STLViewer } from "@/components/3d/STLViewer";
 
 interface UserActivity {
   id: string;
@@ -240,8 +242,11 @@ export default function Profile() {
   const { user } = useUserStore();
   const navigate = useNavigate();
   const [activities, setActivities] = useState<UserActivity[]>([]);
+  const [myPosts, setMyPosts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [postsLoading, setPostsLoading] = useState(true);
   const [isCardOpen, setIsCardOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState<'activities' | 'posts'>('posts');
 
   useEffect(() => {
     if (!user) {
@@ -268,8 +273,48 @@ export default function Profile() {
       }
     };
 
+    const fetchMyPosts = async () => {
+      try {
+        const { data, error } = await supabase
+          .from("posts")
+          .select(`
+            *,
+            post_media (id, media_type, media_url, status)
+          `)
+          .eq("user_id", user.id)
+          .order("created_at", { ascending: false });
+
+        if (!error && data) {
+          setMyPosts(data);
+        }
+      } catch (err) {
+        console.error("Error fetching posts", err);
+      } finally {
+        setPostsLoading(false);
+      }
+    };
+
     fetchActivities();
+    fetchMyPosts();
   }, [user, navigate]);
+
+  const handleDeletePost = async (postId: string) => {
+    if (!confirm("确定要删除这篇帖子吗？此操作不可恢复。")) return;
+    
+    try {
+      // First delete media
+      await supabase.from('post_media').delete().eq('post_id', postId);
+      // Then delete post
+      const { error } = await supabase.from('posts').delete().eq('id', postId);
+      
+      if (error) throw error;
+      
+      showToast('success', '帖子已删除');
+      setMyPosts(prev => prev.filter(p => p.id !== postId));
+    } catch (error: any) {
+      showToast('error', error.message || '删除失败');
+    }
+  };
 
   if (!user) return null;
 
@@ -361,7 +406,7 @@ export default function Profile() {
             </motion.div>
           </div>
 
-          {/* 右侧：活动时间轴 */}
+          {/* 右侧：活动时间轴 & 我的帖子 */}
           <div className="lg:col-span-2">
             <motion.div
               initial={{ opacity: 0, y: 20 }}
@@ -369,53 +414,169 @@ export default function Profile() {
               transition={{ duration: 0.6, delay: 0.3 }}
               className="bg-white rounded-[2.5rem] p-8 md:p-10 shadow-sm border border-white shimmer-border min-h-full"
             >
-              <div className="flex items-center gap-3 mb-8">
-                <div className="w-10 h-10 rounded-xl bg-[#f59e0b]/10 text-[#f59e0b] flex items-center justify-center">
-                  <Activity className="w-5 h-5" />
+              <div className="flex items-center justify-between mb-8 border-b border-gray-100 pb-4">
+                <div className="flex items-center gap-6">
+                  <button 
+                    onClick={() => setActiveTab('posts')}
+                    className={`text-lg font-bold transition-colors relative pb-4 -mb-[17px] ${activeTab === 'posts' ? 'text-[#1d1d1f]' : 'text-gray-400 hover:text-gray-600'}`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <FileText className="w-5 h-5" />
+                      我的帖子
+                    </div>
+                    {activeTab === 'posts' && (
+                      <motion.div layoutId="tab-indicator" className="absolute bottom-0 left-0 w-full h-1 bg-[#0071e3] rounded-t-full" />
+                    )}
+                  </button>
+                  <button 
+                    onClick={() => setActiveTab('activities')}
+                    className={`text-lg font-bold transition-colors relative pb-4 -mb-[17px] ${activeTab === 'activities' ? 'text-[#1d1d1f]' : 'text-gray-400 hover:text-gray-600'}`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <Activity className="w-5 h-5" />
+                      最近动态
+                    </div>
+                    {activeTab === 'activities' && (
+                      <motion.div layoutId="tab-indicator" className="absolute bottom-0 left-0 w-full h-1 bg-[#0071e3] rounded-t-full" />
+                    )}
+                  </button>
                 </div>
-                <h3 className="text-xl font-bold text-[#1d1d1f]">最近动态</h3>
               </div>
 
-              {loading ? (
-                <div className="flex flex-col items-center justify-center py-12">
-                  <div className="w-8 h-8 rounded-full border-3 border-[#0071e3]/20 border-t-[#0071e3] animate-spin mb-4"></div>
-                  <p className="text-sm text-[#86868b]">加载动态中...</p>
-                </div>
-              ) : activities.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-16 bg-[#f5f5f7] rounded-[2rem] border border-dashed border-[#d2d2d7]">
-                  <Clock className="w-12 h-12 text-[#86868b]/30 mb-4" />
-                  <p className="text-[#1d1d1f] font-semibold">暂无动态记录</p>
-                  <p className="text-[#86868b] text-sm mt-2">您的浏览和下载行为将显示在这里</p>
-                </div>
-              ) : (
-                <div className="relative border-l-2 border-[#f5f5f7] ml-4 space-y-8 pb-4">
-                  {activities.map((activity, idx) => (
-                    <motion.div 
-                      key={activity.id}
-                      initial={{ opacity: 0, x: 20 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ delay: 0.1 * idx }}
-                      className="relative pl-8"
-                    >
-                      <div className="absolute w-4 h-4 bg-white border-2 border-[#0071e3] rounded-full -left-[9px] top-1.5 shadow-sm ring-4 ring-white" />
-                      <div className="bg-[#f5f5f7] p-5 rounded-2xl border border-[#eaeaea] hover:shadow-md transition-all group">
-                        <div className="flex items-center justify-between mb-2">
-                          <h4 className="font-bold text-[#1d1d1f] text-base group-hover:text-[#0071e3] transition-colors">{activity.action}</h4>
-                          <span className="text-xs font-mono text-[#86868b] bg-white px-2 py-1 rounded-md shadow-sm border border-[#eaeaea]">
-                            {format(new Date(activity.created_at), "MM-dd HH:mm")}
-                          </span>
+              {activeTab === 'posts' ? (
+                postsLoading ? (
+                  <div className="flex flex-col items-center justify-center py-12">
+                    <div className="w-8 h-8 rounded-full border-3 border-[#0071e3]/20 border-t-[#0071e3] animate-spin mb-4"></div>
+                    <p className="text-sm text-[#86868b]">加载帖子中...</p>
+                  </div>
+                ) : myPosts.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-16 bg-[#f5f5f7] rounded-[2rem] border border-dashed border-[#d2d2d7]">
+                    <FileText className="w-12 h-12 text-[#86868b]/30 mb-4" />
+                    <p className="text-[#1d1d1f] font-semibold">您还没有发布过帖子</p>
+                    <button onClick={() => navigate('/community')} className="mt-4 text-[#0071e3] hover:underline text-sm font-medium">
+                      去社区看看
+                    </button>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {myPosts.map((post, idx) => (
+                      <motion.div 
+                        key={post.id}
+                        initial={{ opacity: 0, scale: 0.95 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        transition={{ delay: 0.05 * idx }}
+                        className="bg-white border border-gray-100 rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition-shadow group flex flex-col relative"
+                      >
+                        {/* Status Badge */}
+                        <div className="absolute top-2 left-2 z-10 flex gap-2">
+                          {post.status === 'pending_ai' && <span className="bg-yellow-100/90 backdrop-blur-sm text-yellow-800 text-xs px-2 py-1 rounded shadow-sm">AI审核中</span>}
+                          {post.status === 'pending_manual' && <span className="bg-orange-100/90 backdrop-blur-sm text-orange-800 text-xs px-2 py-1 rounded shadow-sm">人工审核中</span>}
+                          {post.status === 'rejected' && <span className="bg-red-100/90 backdrop-blur-sm text-red-800 text-xs px-2 py-1 rounded shadow-sm">未通过</span>}
+                          {post.status === 'approved' && <span className="bg-green-100/90 backdrop-blur-sm text-green-800 text-xs px-2 py-1 rounded shadow-sm">已发布</span>}
                         </div>
-                        {activity.details && Object.keys(activity.details).length > 0 && (
-                          <div className="mt-3 bg-white p-3 rounded-xl text-xs text-[#86868b] border border-[#eaeaea]">
-                            <pre className="font-mono whitespace-pre-wrap">
-                              {JSON.stringify(activity.details, null, 2)}
-                            </pre>
+
+                        {/* Delete Button */}
+                        <button 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeletePost(post.id);
+                          }}
+                          className="absolute top-2 right-2 z-10 p-1.5 bg-black/20 hover:bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-all backdrop-blur-sm"
+                          title="删除帖子"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+
+                        {/* Media Preview */}
+                        {post.post_media && post.post_media.length > 0 ? (
+                          <div className="relative h-40 w-full overflow-hidden bg-gray-100">
+                            {post.post_media[0].media_type === 'image' ? (
+                              <img src={post.post_media[0].media_url} alt={post.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                            ) : (
+                              <div className="w-full h-full flex items-center justify-center relative bg-gray-200">
+                                {/* 简化 3D 模型预览为图标提示 */}
+                                <div className="flex flex-col items-center text-gray-500">
+                                  <Layers className="w-8 h-8 mb-1" />
+                                  <span className="text-xs">3D 模型文件</span>
+                                </div>
+                                <div className="absolute inset-0 z-10 bg-transparent"></div>
+                              </div>
+                            )}
+                            {post.post_media.length > 1 && (
+                              <div className="absolute bottom-2 right-2 bg-black/50 backdrop-blur-md px-1.5 py-0.5 rounded text-white text-[10px] flex items-center gap-1">
+                                <ImageIcon className="w-3 h-3" /> {post.post_media.length}
+                              </div>
+                            )}
                           </div>
+                        ) : (
+                          <div className="h-20 w-full bg-gradient-to-r from-blue-50 to-green-50"></div>
                         )}
-                      </div>
-                    </motion.div>
-                  ))}
-                </div>
+
+                        {/* Content */}
+                        <div className="p-4 flex flex-col flex-grow">
+                          <h4 className="font-bold text-[#1d1d1f] line-clamp-1 mb-1">{post.title}</h4>
+                          <p className="text-sm text-gray-500 line-clamp-2 mb-3">{post.content}</p>
+                          
+                          {post.status === 'rejected' && post.moderation_reason && (
+                            <p className="text-xs text-red-500 bg-red-50 p-2 rounded mb-3 mt-auto">
+                              原因: {post.moderation_reason}
+                            </p>
+                          )}
+
+                          <div className="flex items-center justify-between mt-auto pt-3 border-t border-gray-50 text-xs text-gray-400">
+                            <span>{format(new Date(post.created_at), "yyyy-MM-dd")}</span>
+                            <div className="flex gap-3">
+                              <span className="flex items-center gap-1"><Eye className="w-3 h-3"/> {post.views_count}</span>
+                              <span className="flex items-center gap-1"><Heart className="w-3 h-3"/> {post.likes_count}</span>
+                            </div>
+                          </div>
+                        </div>
+                      </motion.div>
+                    ))}
+                  </div>
+                )
+              ) : (
+                loading ? (
+                  <div className="flex flex-col items-center justify-center py-12">
+                    <div className="w-8 h-8 rounded-full border-3 border-[#0071e3]/20 border-t-[#0071e3] animate-spin mb-4"></div>
+                    <p className="text-sm text-[#86868b]">加载动态中...</p>
+                  </div>
+                ) : activities.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-16 bg-[#f5f5f7] rounded-[2rem] border border-dashed border-[#d2d2d7]">
+                    <Clock className="w-12 h-12 text-[#86868b]/30 mb-4" />
+                    <p className="text-[#1d1d1f] font-semibold">暂无动态记录</p>
+                    <p className="text-[#86868b] text-sm mt-2">您的浏览和下载行为将显示在这里</p>
+                  </div>
+                ) : (
+                  <div className="relative border-l-2 border-[#f5f5f7] ml-4 space-y-8 pb-4">
+                    {activities.map((activity, idx) => (
+                      <motion.div 
+                        key={activity.id}
+                        initial={{ opacity: 0, x: 20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: 0.1 * idx }}
+                        className="relative pl-8"
+                      >
+                        <div className="absolute w-4 h-4 bg-white border-2 border-[#0071e3] rounded-full -left-[9px] top-1.5 shadow-sm ring-4 ring-white" />
+                        <div className="bg-[#f5f5f7] p-5 rounded-2xl border border-[#eaeaea] hover:shadow-md transition-all group">
+                          <div className="flex items-center justify-between mb-2">
+                            <h4 className="font-bold text-[#1d1d1f] text-base group-hover:text-[#0071e3] transition-colors">{activity.action}</h4>
+                            <span className="text-xs font-mono text-[#86868b] bg-white px-2 py-1 rounded-md shadow-sm border border-[#eaeaea]">
+                              {format(new Date(activity.created_at), "MM-dd HH:mm")}
+                            </span>
+                          </div>
+                          {activity.details && Object.keys(activity.details).length > 0 && (
+                            <div className="mt-3 bg-white p-3 rounded-xl text-xs text-[#86868b] border border-[#eaeaea]">
+                              <pre className="font-mono whitespace-pre-wrap">
+                                {JSON.stringify(activity.details, null, 2)}
+                              </pre>
+                            </div>
+                          )}
+                        </div>
+                      </motion.div>
+                    ))}
+                  </div>
+                )
               )}
             </motion.div>
           </div>

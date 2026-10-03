@@ -11,7 +11,8 @@ import {
   FileCheck,
   ShieldAlert,
   MessageSquare,
-  MonitorPlay
+  MonitorPlay,
+  Megaphone
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useState, useEffect } from "react";
@@ -233,6 +234,15 @@ export default function AdminDashboard() {
                     <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center group-hover:scale-110 transition-transform">
                       <MonitorPlay className="w-4 h-4 text-white" />
                     </div>
+                  </div>
+                </Link>
+                <Link to="/admin/settings" className="group p-6 rounded-3xl bg-[#f5f5f7] hover:bg-[#0071e3] transition-all duration-300">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="font-bold text-lg group-hover:text-white transition-colors">全局设置</h3>
+                      <p className="text-sm text-[#86868b] group-hover:text-white/80 transition-colors">横幅与公告管理</p>
+                    </div>
+                    <Megaphone className="w-5 h-5 text-[#86868b] group-hover:text-white group-hover:translate-x-1 transition-all" />
                   </div>
                 </Link>
               </div>

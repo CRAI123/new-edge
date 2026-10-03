@@ -5,6 +5,7 @@ import { supabase } from '@/lib/supabase';
 import { useUserStore } from '@/store/useUserStore';
 import { showToast } from '@/lib/utils';
 import STLViewer from '@/components/STLViewer';
+import { Turnstile } from '@marsidev/react-turnstile';
 
 import { useNavigate } from 'react-router-dom';
 
@@ -45,6 +46,10 @@ export default function Community() {
   });
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Turnstile state
+  const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
+  const [turnstileKey, setTurnstileKey] = useState(0);
+
   // Sync agreement state to localStorage
   useEffect(() => {
     localStorage.setItem('rayzo_community_agreed', agreedToGuidelines.toString());
@@ -52,12 +57,14 @@ export default function Community() {
 
   useEffect(() => {
     fetchPosts();
-  }, [activeTab]);
+  }, [activeTab, user?.id]);
 
   const fetchPosts = async () => {
     try {
       let url = '/api/posts?limit=20';
       if (activeTab !== '全部') url += `&category=${activeTab}`;
+      if (user?.id) url += `&userId=${user.id}`;
+      
       const res = await fetch((import.meta.env.VITE_API_BASE_URL || '') + url);
       const { data } = await res.json();
       if (data) {
@@ -180,6 +187,7 @@ export default function Community() {
     if (!user) return showToast('error', '请先登录');
     if (!title.trim() || !content.trim()) return showToast('error', '标题和内容不能为空');
     if (!agreedToGuidelines) return showToast('error', '请阅读并同意社区规范');
+    if (!turnstileToken) return showToast('error', '请完成人机验证');
     
     setIsSubmitting(true);
     try {
@@ -217,7 +225,8 @@ export default function Community() {
           title,
           content,
           category: postCategory,
-          mediaUrls
+          mediaUrls,
+          turnstileToken
         })
       });
       
@@ -229,6 +238,8 @@ export default function Community() {
       setTitle('');
       setContent('');
       setMediaFiles([]);
+      setTurnstileToken(null);
+      setTurnstileKey(prev => prev + 1);
       // Do not reset agreedToGuidelines so the user doesn't have to check it again
       fetchPosts();
     } catch (err: any) {
@@ -305,7 +316,13 @@ export default function Community() {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 key={post.id}
-                className="break-inside-avoid bg-white rounded-3xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 cursor-pointer group"
+                onClick={() => {
+                  setSelectedPostId(post.id);
+                  setShowCommentModal(true);
+                  // Trigger view count update
+                  // Note: Implement an API route to increment views if desired
+                }}
+                className="break-inside-avoid bg-white rounded-3xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 cursor-pointer group flex flex-col h-full"
               >
                 {/* Cover Image/Preview */}
                 {post.post_media && post.post_media.length > 0 ? (
@@ -328,10 +345,23 @@ export default function Community() {
                   <div className="w-full h-32 bg-gradient-to-br from-[#0071e3]/10 to-[#28cd41]/10"></div>
                 )}
 
-                <div className="p-4 relative z-10 bg-white">
-                  <h3 className="font-bold text-[#1d1d1f] line-clamp-2 mb-2 group-hover:text-[#0071e3] transition-colors">{post.title}</h3>
+                <div className="p-4 relative z-10 bg-white flex flex-col justify-between flex-grow">
+                  <div>
+                    <h3 className="font-bold text-[#1d1d1f] line-clamp-2 mb-2 group-hover:text-[#0071e3] transition-colors">
+                      {(post as any).status === 'pending_ai' && <span className="inline-block bg-yellow-100 text-yellow-800 text-xs px-2 py-1 rounded mr-2 align-middle">审核中</span>}
+                      {(post as any).status === 'pending_manual' && <span className="inline-block bg-orange-100 text-orange-800 text-xs px-2 py-1 rounded mr-2 align-middle">人工审核中</span>}
+                      {(post as any).status === 'rejected' && <span className="inline-block bg-red-100 text-red-800 text-xs px-2 py-1 rounded mr-2 align-middle">未通过</span>}
+                      {post.title}
+                    </h3>
+                    <p className="text-sm text-gray-500 line-clamp-2 mb-4">{post.content}</p>
+                    {(post as any).status === 'rejected' && (post as any).moderation_reason && (
+                      <p className="text-xs text-red-500 mt-2 bg-red-50 p-2 rounded">
+                        原因: {(post as any).moderation_reason}
+                      </p>
+                    )}
+                  </div>
                   
-                  <div className="flex items-center justify-between mt-4">
+                  <div className="flex items-center justify-between mt-auto pt-2">
                     <div className="flex items-center gap-2">
                       <img 
                         src={post.profiles?.avatar_url || 'https://api.dicebear.com/7.x/avataaars/svg?seed=fallback'}
@@ -345,7 +375,15 @@ export default function Community() {
                     
                     <div className="flex items-center gap-3 text-xs text-[#86868b]">
                       <span className="flex items-center gap-1"><Eye className="w-3 h-3"/> {post.views_count}</span>
-                      <span className={`flex items-center gap-1 transition-colors ${likedPosts.has(post.id) ? 'text-rose-500' : ''}`}><Heart className={`w-3 h-3 ${likedPosts.has(post.id) ? 'fill-current' : ''}`}/> {post.likes_count}</span>
+                      <button 
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleLikePost(post.id);
+                        }}
+                        className={`flex items-center gap-1 transition-colors hover:text-rose-500 ${likedPosts.has(post.id) ? 'text-rose-500' : ''}`}
+                      >
+                        <Heart className={`w-3 h-3 ${likedPosts.has(post.id) ? 'fill-current' : ''}`}/> {post.likes_count}
+                      </button>
                     </div>
                   </div>
                 </div>
@@ -355,96 +393,171 @@ export default function Community() {
         </div>
       )}
 
-      {/* Comment Modal */}
-        <AnimatePresence>
-          {showCommentModal && selectedPostId && (
+      {/* Post Detail & Comment Modal (Xiaohongshu Style) */}
+      <AnimatePresence>
+        {showCommentModal && selectedPostId && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-0 md:p-8"
+            onClick={() => setShowCommentModal(false)}
+          >
             <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4"
-              onClick={() => setShowCommentModal(false)}
+              initial={{ scale: 0.95, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.95, opacity: 0, y: 20 }}
+              onClick={(e) => e.stopPropagation()}
+              className="bg-white md:rounded-3xl w-full h-full md:h-[85vh] max-w-6xl overflow-hidden shadow-2xl flex flex-col md:flex-row relative"
             >
-              <motion.div
-                initial={{ scale: 0.95, opacity: 0, y: 20 }}
-                animate={{ scale: 1, opacity: 1, y: 0 }}
-                exit={{ scale: 0.95, opacity: 0, y: 20 }}
-                onClick={(e) => e.stopPropagation()}
-                className="bg-white rounded-3xl w-full max-w-lg overflow-hidden shadow-2xl flex flex-col max-h-[80vh]"
+              {/* Close Button - Floating */}
+              <button 
+                onClick={() => setShowCommentModal(false)} 
+                className="absolute top-4 right-4 z-50 p-2 bg-black/10 hover:bg-black/20 text-gray-500 hover:text-gray-800 rounded-full transition-colors md:hidden"
               >
-                <div className="p-6 border-b border-[#f5f5f7] flex items-center justify-between sticky top-0 bg-white z-10">
-                  <h2 className="text-xl font-bold text-[#1d1d1f] flex items-center gap-2">
-                    <MessageCircle className="w-5 h-5 text-[#0071e3]" />
-                    评论
-                  </h2>
-                  <button onClick={() => setShowCommentModal(false)} className="p-2 hover:bg-gray-100 rounded-full transition-colors">
+                <X className="w-6 h-6" />
+              </button>
+
+              {/* Left Side: Media Display */}
+              <div className="w-full md:w-3/5 bg-[#0a0a0a] flex items-center justify-center relative overflow-hidden h-[40vh] md:h-full shrink-0">
+                {(() => {
+                  const currentPost = posts.find(p => p.id === selectedPostId);
+                  if (!currentPost?.post_media || currentPost.post_media.length === 0) {
+                    return <div className="text-gray-500 flex flex-col items-center"><ImageIcon className="w-12 h-12 mb-2 opacity-20"/>无媒体内容</div>;
+                  }
+                  
+                  // Simple carousel for multiple images could be implemented here. For now, showing the first media or a scrollable list.
+                  return (
+                    <div className="w-full h-full overflow-y-auto flex flex-col snap-y snap-mandatory hide-scrollbar">
+                      {currentPost.post_media.map((media, idx) => (
+                        <div key={idx} className="w-full h-full flex-shrink-0 snap-center flex items-center justify-center relative group">
+                          {media.media_type === 'image' ? (
+                            <img src={media.media_url} alt="Post media" className="max-w-full max-h-full object-contain" />
+                          ) : (
+                            <div className="w-full h-full">
+                              <STLViewer url={media.media_url} />
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                      {currentPost.post_media.length > 1 && (
+                        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-black/50 backdrop-blur-md px-3 py-1 rounded-full text-white text-xs z-20 pointer-events-none">
+                          滑动查看更多 ({currentPost.post_media.length} 张)
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
+              </div>
+
+              {/* Right Side: Content & Comments */}
+              <div className="w-full md:w-2/5 flex flex-col h-[60vh] md:h-full bg-white relative">
+                {/* Header (Author Info & Close button on desktop) */}
+                <div className="p-4 md:p-6 border-b border-[#f5f5f7] flex items-center justify-between sticky top-0 bg-white z-10 shrink-0">
+                  {(() => {
+                    const currentPost = posts.find(p => p.id === selectedPostId);
+                    return (
+                      <div className="flex items-center gap-3">
+                        <img 
+                          src={currentPost?.profiles?.avatar_url || 'https://api.dicebear.com/7.x/avataaars/svg?seed=fallback'}
+                          alt="avatar"
+                          className="w-10 h-10 rounded-full border border-gray-100"
+                        />
+                        <span className="font-bold text-[#1d1d1f]">{currentPost?.profiles?.full_name || '匿名大神'}</span>
+                      </div>
+                    );
+                  })()}
+                  <button onClick={() => setShowCommentModal(false)} className="hidden md:flex p-2 hover:bg-gray-100 rounded-full transition-colors text-gray-400 hover:text-gray-800">
                     <X className="w-5 h-5" />
                   </button>
                 </div>
 
-                <div className="p-6 overflow-y-auto flex-1 bg-[#f5f5f7]/50 space-y-6">
-                  {comments.length === 0 ? (
-                    <div className="text-center text-[#86868b] py-8">
-                      <MessageCircle className="w-12 h-12 mx-auto mb-3 opacity-20" />
-                      <p>还没有人评论，快来抢沙发吧！</p>
-                    </div>
-                  ) : (
-                    comments.map(comment => (
-                      <div key={comment.id} className="flex gap-4">
-                        <img 
-                          src={comment.profiles?.avatar_url || 'https://api.dicebear.com/7.x/avataaars/svg?seed=fallback'}
-                          alt="avatar"
-                          className="w-10 h-10 rounded-full border border-white shadow-sm shrink-0"
-                        />
-                        <div className="flex-1">
-                          <div className="bg-white p-4 rounded-2xl rounded-tl-none shadow-sm">
-                            <div className="flex items-center justify-between mb-1">
-                              <span className="font-bold text-[#1d1d1f] text-sm">{comment.profiles?.full_name || '匿名大神'}</span>
-                              <span className="text-xs text-[#86868b]">{new Date(comment.created_at).toLocaleDateString()}</span>
-                            </div>
-                            <p className="text-[#1d1d1f] text-sm leading-relaxed whitespace-pre-wrap">{comment.content}</p>
-                          </div>
+                {/* Scrollable Content: Post text + Comments */}
+                <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-6">
+                  {/* Post Content */}
+                  {(() => {
+                    const currentPost = posts.find(p => p.id === selectedPostId);
+                    return (
+                      <div className="pb-6 border-b border-[#f5f5f7]">
+                        <h2 className="text-xl font-bold text-[#1d1d1f] mb-3 leading-tight">{currentPost?.title}</h2>
+                        <p className="text-[#1d1d1f] text-[15px] leading-relaxed whitespace-pre-wrap">{currentPost?.content}</p>
+                        <div className="mt-4 text-xs text-gray-400">
+                          发布于 {currentPost ? new Date(currentPost.created_at).toLocaleDateString() : ''}
                         </div>
                       </div>
-                    ))
-                  )}
+                    );
+                  })()}
+
+                  {/* Comments Section */}
+                  <div>
+                    <h3 className="text-sm font-bold text-gray-400 mb-4 flex items-center gap-1">
+                      共 {comments.length} 条评论
+                    </h3>
+                    <div className="space-y-5">
+                      {comments.length === 0 ? (
+                        <div className="text-center text-[#86868b] py-8">
+                          <MessageCircle className="w-10 h-10 mx-auto mb-2 opacity-20" />
+                          <p className="text-sm">还没有人评论，快来抢沙发吧！</p>
+                        </div>
+                      ) : (
+                        comments.map(comment => (
+                          <div key={comment.id} className="flex gap-3">
+                            <img 
+                              src={comment.profiles?.avatar_url || 'https://api.dicebear.com/7.x/avataaars/svg?seed=fallback'}
+                              alt="avatar"
+                              className="w-8 h-8 rounded-full border border-gray-100 shrink-0 mt-1"
+                            />
+                            <div className="flex-1">
+                              <span className="font-bold text-[#1d1d1f] text-[13px] text-gray-600 mr-2">{comment.profiles?.full_name || '匿名大神'}</span>
+                              <p className="text-[#1d1d1f] text-[14px] leading-relaxed whitespace-pre-wrap mt-0.5">{comment.content}</p>
+                              <div className="mt-1 text-xs text-gray-400">
+                                {new Date(comment.created_at).toLocaleDateString()}
+                              </div>
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
                 </div>
 
-                <div className="p-4 border-t border-[#f5f5f7] bg-white">
-                  <div className="flex gap-3">
+                {/* Footer: Input Area */}
+                <div className="p-3 md:p-4 border-t border-[#f5f5f7] bg-white shrink-0">
+                  <div className="flex gap-2 items-center">
                     <img 
                       src={'https://api.dicebear.com/7.x/avataaars/svg?seed=fallback'}
                       alt="your avatar"
-                      className="w-10 h-10 rounded-full border border-gray-200 shrink-0"
+                      className="w-8 h-8 rounded-full border border-gray-200 shrink-0 hidden sm:block"
                     />
-                    <div className="flex-1 flex gap-2">
+                    <div className="flex-1 flex gap-2 relative">
                       <input
                         type="text"
                         value={newComment}
                         onChange={(e) => setNewComment(e.target.value)}
-                        placeholder={user ? "写下你的评论..." : "请先登录后再评论"}
+                        placeholder={user ? "喜欢就给个评论支持一下..." : "请先登录后再评论"}
                         disabled={!user || isSubmittingComment}
                         onKeyPress={(e) => {
                           if (e.key === 'Enter') {
                             handlePostComment();
                           }
                         }}
-                        className="flex-1 bg-[#f5f5f7] border-none rounded-full px-4 py-2 text-sm focus:ring-2 focus:ring-[#0071e3]/20 focus:outline-none transition-all disabled:opacity-50"
+                        className="flex-1 bg-[#f5f5f7] border border-transparent rounded-full pl-4 pr-16 py-2.5 text-sm focus:bg-white focus:border-[#0071e3]/30 focus:ring-4 focus:ring-[#0071e3]/10 focus:outline-none transition-all disabled:opacity-50"
                       />
                       <button
                         onClick={handlePostComment}
                         disabled={!user || !newComment.trim() || isSubmittingComment}
-                        className="bg-[#0071e3] text-white px-4 py-2 rounded-full text-sm font-bold hover:bg-[#0077ed] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                        className="absolute right-1.5 top-1.5 bottom-1.5 bg-[#0071e3] text-white px-3.5 rounded-full text-sm font-bold hover:bg-[#0077ed] disabled:opacity-50 disabled:bg-gray-300 disabled:text-gray-500 transition-colors"
                       >
-                        {isSubmittingComment ? '发送中...' : '发送'}
+                        {isSubmittingComment ? '...' : '发送'}
                       </button>
                     </div>
                   </div>
                 </div>
-              </motion.div>
+              </div>
             </motion.div>
-          )}
-        </AnimatePresence>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
         {/* Create Post Modal */}
       <AnimatePresence>
@@ -562,25 +675,43 @@ export default function Community() {
                     checked={agreedToGuidelines}
                     onChange={(e) => setAgreedToGuidelines(e.target.checked)}
                   />
-                  <span className="text-sm text-gray-600">
-                    我已阅读并同意 <a href="/community-guidelines" target="_blank" rel="noopener noreferrer" className="text-[#0071e3] hover:underline" onClick={(e) => e.stopPropagation()}>《大神社区规范与免责声明》</a>
+                  <span className="text-sm text-gray-600 whitespace-nowrap">
+                    我已阅读并同意 <a href="/community-guidelines" target="_blank" rel="noopener noreferrer" className="text-[#0071e3] hover:underline" onClick={(e) => e.stopPropagation()}>《社区规范》</a>
                   </span>
                 </label>
                 
-                <button
-                  onClick={handleCreatePost}
-                  disabled={isSubmitting || !title.trim() || !content.trim() || !agreedToGuidelines}
-                  className="btn-primary px-8 py-2.5 rounded-full disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 w-full sm:w-auto"
-                >
-                  {isSubmitting ? (
-                    <>
-                      <div className="w-4 h-4 rounded-full border-2 border-white/30 border-t-white animate-spin" />
-                      发布中...
-                    </>
-                  ) : (
-                    '发布'
-                  )}
-                </button>
+                <div className="flex items-center gap-3 w-full sm:w-auto justify-end">
+                  <div className="scale-75 origin-right sm:scale-90 flex items-center">
+                    {(!import.meta.env.DEV || import.meta.env.DEV) && (
+                      <Turnstile
+                        key={turnstileKey}
+                        siteKey={import.meta.env.DEV ? "1x00000000000000000000AA" : "0x4AAAAAAFEV-PHDZX-ZmnQP"}
+                        onSuccess={(token) => setTurnstileToken(token)}
+                        onError={() => setTurnstileToken(null)}
+                        onExpire={() => setTurnstileToken(null)}
+                        options={{
+                          theme: 'light',
+                          size: 'normal',
+                        }}
+                      />
+                    )}
+                  </div>
+                  
+                  <button
+                    onClick={handleCreatePost}
+                    disabled={isSubmitting || !title.trim() || !content.trim() || !agreedToGuidelines || !turnstileToken}
+                    className="btn-primary px-8 py-2.5 rounded-full disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 flex-shrink-0"
+                  >
+                    {isSubmitting ? (
+                      <>
+                        <div className="w-4 h-4 rounded-full border-2 border-white/30 border-t-white animate-spin" />
+                        发布中
+                      </>
+                    ) : (
+                      '发布'
+                    )}
+                  </button>
+                </div>
               </div>
             </motion.div>
           </div>

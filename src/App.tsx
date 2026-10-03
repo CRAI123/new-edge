@@ -1,6 +1,7 @@
 import { Suspense, lazy, useEffect } from "react";
 import { BrowserRouter as Router, Routes, Route, useLocation } from "react-router-dom";
 import Navbar from "@/components/Navbar";
+import Banner from "@/components/Banner";
 import Footer from "@/components/Footer";
 import LineAnimationBackground from "@/components/LineAnimationBackground";
 import CookieBanner from "@/components/CookieBanner";
@@ -31,6 +32,7 @@ const AdminOrderManager = lazy(() => import("@/pages/Admin/OrderManager"));
 const ModerationManager = lazy(() => import("@/pages/Admin/ModerationManager"));
 const CommunityManager = lazy(() => import("@/pages/Admin/CommunityManager"));
 const LiveGallery = lazy(() => import("@/pages/Admin/LiveGallery"));
+const SettingsManager = lazy(() => import("@/pages/Admin/SettingsManager"));
 const LogisticsTracker = lazy(() => import("@/pages/LogisticsTracker"));
 const OrderTrack = lazy(() => import("@/pages/OrderTrack"));
 const Profile = lazy(() => import("@/pages/Profile"));
@@ -96,6 +98,7 @@ function AnimatedRoutes() {
         <Route path="/admin/moderation" element={<motion.div {...pageTransition}><ModerationManager /></motion.div>} />
         <Route path="/admin/community" element={<motion.div {...pageTransition}><CommunityManager /></motion.div>} />
         <Route path="/admin/gallery" element={<motion.div {...pageTransition}><LiveGallery /></motion.div>} />
+        <Route path="/admin/settings" element={<motion.div {...pageTransition}><SettingsManager /></motion.div>} />
       </Routes>
     </AnimatePresence>
   );
@@ -258,8 +261,16 @@ export default function App() {
       />
       <div className="flex flex-col min-h-screen relative overflow-hidden">
         <LineAnimationBackground />
-        <div className="relative z-10 flex flex-col min-h-screen pt-20 md:pt-28">
+        
+        {/* Navigation & Header */}
+        <div className="fixed top-0 left-0 right-0 z-50 flex flex-col pointer-events-none">
           <Navbar />
+          <div className="pointer-events-auto px-4 md:px-8 max-w-7xl mx-auto w-full">
+            <Banner />
+          </div>
+        </div>
+
+        <div className="relative z-10 flex flex-col min-h-screen pt-[calc(6rem+60px)] md:pt-[calc(8rem+60px)]">
           <main className="flex-1 w-full relative">
             <Suspense fallback={<PageSkeleton />}>
               <AnimatedRoutes />

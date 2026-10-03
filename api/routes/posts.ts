@@ -1,4 +1,4 @@
-﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿import express, { type Request, type Response } from 'express';
+﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿import express, { type Request, type Response } from 'express';
 import { createClient } from '@supabase/supabase-js';
 import dotenv from 'dotenv';
 import fetch from 'node-fetch';
@@ -18,8 +18,9 @@ const router = express.Router();
 // GET /api/posts - Get posts with pagination and category filter
 router.get('/', async (req: Request, res: Response) => {
   try {
-    const { category, limit = '20', offset = '0' } = req.query;
+    const { category, limit = '20', offset = '0', userId } = req.query;
 
+    // Get public approved posts
     let query = supabaseAdmin
       .from('posts')
       .select(`
@@ -35,10 +36,31 @@ router.get('/', async (req: Request, res: Response) => {
       query = query.eq('category', category);
     }
 
-    const { data, error } = await query;
-
+    const { data: approvedPosts, error } = await query;
     if (error) throw error;
-    res.json({ success: true, data });
+
+    let finalPosts = approvedPosts || [];
+
+    // If userId is provided, fetch their pending/rejected posts and prepend them
+    if (userId && offset === '0') {
+      const { data: userPrivatePosts, error: privateError } = await supabaseAdmin
+        .from('posts')
+        .select(`
+          *,
+          profiles (full_name, avatar_url),
+          post_media (id, media_type, media_url, status)
+        `)
+        .eq('user_id', userId)
+        .in('status', ['pending_ai', 'pending_manual', 'rejected'])
+        .order('created_at', { ascending: false });
+        
+      if (!privateError && userPrivatePosts) {
+        // Prepend user's private posts to the feed
+        finalPosts = [...userPrivatePosts, ...finalPosts];
+      }
+    }
+
+    res.json({ success: true, data: finalPosts });
   } catch (error: any) {
     res.status(500).json({ success: false, error: error.message });
   }
@@ -163,7 +185,30 @@ router.post('/', async (req: Request, res: Response) => {
     const { data: { user }, error: authError } = await userSupabase.auth.getUser();
     if (authError || !user) return res.status(401).json({ error: 'Unauthorized' });
 
-    const { title, content, category, mediaUrls } = req.body;
+    const { title, content, category, mediaUrls, turnstileToken } = req.body;
+
+    // Verify Turnstile Token if not in development
+    if (process.env.NODE_ENV !== 'development') {
+      if (!turnstileToken || turnstileToken === 'mock-dev-token') {
+        return res.status(400).json({ success: false, error: '缺少人机验证 Token' });
+      }
+
+      const turnstileVerify = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: new URLSearchParams({
+          secret: process.env.TURNSTILE_SECRET_KEY || '0x4AAAAAAFEV-E3t1P_5v7HhQ2u4P_vX7H0',
+          response: turnstileToken,
+        }),
+      });
+
+      const turnstileResult = await turnstileVerify.json();
+      if (!turnstileResult.success) {
+        return res.status(400).json({ success: false, error: '人机验证失败，请重试' });
+      }
+    }
 
     // 1. Insert post (defaults to pending_ai due to DB default)
     const { data: postData, error: postError } = await userSupabase
