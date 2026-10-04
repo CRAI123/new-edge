@@ -378,7 +378,7 @@ export default function Community() {
                       <button 
                         onClick={(e) => {
                           e.stopPropagation();
-                          handleLikePost(post.id);
+                          handleLike(post.id);
                         }}
                         className={`flex items-center gap-1 transition-colors hover:text-rose-500 ${likedPosts.has(post.id) ? 'text-rose-500' : ''}`}
                       >
