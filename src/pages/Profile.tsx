@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useUserStore } from "@/store/useUserStore";
 import { supabase } from "@/lib/supabase";
-import { User, Activity, Clock, ShieldCheck, Mail, LogIn, MousePointerClick, Download, Layers, Camera, X, Sparkles, Plane, FileText, Image as ImageIcon, Eye, Heart, MessageCircle, MoreVertical, Trash2 } from "lucide-react";
+import { User, Activity, Clock, ShieldCheck, Mail, LogIn, MousePointerClick, Download, Layers, Camera, X, Sparkles, Plane, FileText, Image as ImageIcon, Eye, Heart, MessageCircle, MoreVertical, Trash2, Coins } from "lucide-react";
 import MemberBadge from "@/components/Badge/MemberBadge";
 import { useNavigate } from "react-router-dom";
 import { format } from "date-fns";
@@ -250,7 +250,7 @@ export default function Profile() {
 
   useEffect(() => {
     if (!user) {
-      navigate("/login");
+      navigate("/auth");
       return;
     }
 

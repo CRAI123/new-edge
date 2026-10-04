@@ -13,6 +13,7 @@ export interface UserProfile {
   downloadCount: number;
   require_password_change?: boolean;
   force_no_skip_password_change?: boolean;
+  r_coins?: number;
 }
 
 interface UserState {

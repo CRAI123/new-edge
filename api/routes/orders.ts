@@ -172,7 +172,7 @@ router.post('/', async (req: AuthedRequest, res: Response) => {
 
   const order_no = generateOrderNo()
   const now = new Date().toISOString()
-  const payment_status: PaymentStatus = channel === 'wechat_online' ? 'paid' : 'unpaid'
+  const payment_status: PaymentStatus = 'unpaid'
   const status: OrderStatus = 'model_check'
   const status_timestamps: StatusTimestamps = { model_check: now }
 
@@ -430,52 +430,6 @@ router.patch('/:id/tracking', async (req: AuthedRequest, res: Response) => {
     res.status(400).json({
       success: false,
       error: `更新运单信息失败: ${error.message}`,
-      code: error.code,
-    })
-    return
-  }
-
-  res.status(200).json({
-    success: true,
-    data,
-  })
-})
-
-router.patch('/:id/payment', async (req: AuthedRequest, res: Response) => {
-  if (!(await requireAdmin(req, res))) return
-
-  const { id } = req.params
-  const { payment_status, paid_amount } = req.body as UpdatePaymentBody
-
-  if (payment_status !== 'paid' && payment_status !== 'unpaid') {
-    res.status(400).json({
-      success: false,
-      error: "无效的付款状态，有效值：'paid' 或 'unpaid'",
-    })
-    return
-  }
-
-  const now = new Date().toISOString()
-  const updateData: Record<string, unknown> = {
-    payment_status,
-    updated_at: now,
-  }
-
-  if (typeof paid_amount === 'number') {
-    updateData.paid_amount = paid_amount
-  }
-
-  const { data, error } = await supabase
-    .from('orders')
-    .update(updateData)
-    .eq('id', id)
-    .select()
-    .single()
-
-  if (error) {
-    res.status(400).json({
-      success: false,
-      error: `更新付款状态失败: ${error.message}`,
       code: error.code,
     })
     return
@@ -844,61 +798,3 @@ router.delete('/:id', async (req: AuthedRequest, res: Response) => {
 })
 
 export default router
-
-router.post('/wechat-pay-webhook', async (req: Request, res: Response) => {
-  // In a real scenario, you would verify the signature of the WeChat Pay notification
-  // For now, we'll simulate processing an online order
-
-  const { order_data } = req.body; // Assuming the webhook sends order data
-
-  if (!order_data) {
-    res.status(400).json({ success: false, error: "缺少订单数据" });
-    return;
-  }
-
-  try {
-    const order_no = generateOrderNo();
-    const now = new Date().toISOString();
-    const status: OrderStatus = 'model_check';
-    const status_timestamps: StatusTimestamps = { model_check: now };
-    const payment_status: PaymentStatus = 'paid';
-    const channel: OrderChannel = 'wechat_online';
-
-    const { error } = await supabase
-      .from('orders')
-      .insert([
-        {
-          order_no,
-          customer_name: order_data.customer_name || "",
-          customer_wechat: order_data.customer_wechat || null,
-          model_name: order_data.model_name || "",
-          quantity: order_data.quantity || 1,
-          price: order_data.price || 0,
-          estimated_print_hours: order_data.estimated_print_hours || null,
-          channel,
-          payment_status,
-          status,
-          status_timestamps,
-          created_at: now,
-          updated_at: now,
-        },
-      ])
-      .select()
-      .single();
-
-    if (error) {
-      console.error("WeChat Pay Webhook: 创建订单失败:", error);
-      res.status(400).json({
-        success: false,
-        error: `创建订单失败: ${error.message}`,
-        code: error.code,
-      });
-      return;
-    }
-
-    res.status(200).json({ success: true, message: "在线订单已成功处理" });
-  } catch (err: any) {
-    console.error("WeChat Pay Webhook: 处理失败:", err);
-    res.status(500).json({ success: false, error: `处理在线订单失败: ${err.message}` });
-  }
-});
