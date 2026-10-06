@@ -682,10 +682,19 @@ export default function Community() {
                 
                 <div className="flex items-center gap-3 w-full sm:w-auto justify-end">
                   <div className="scale-75 origin-right sm:scale-90 flex items-center">
-                    {(!import.meta.env.DEV || import.meta.env.DEV) && (
+                    {import.meta.env.DEV ? (
+                      <div className="w-full py-3 px-4 text-center text-sm text-[#86868b] bg-[#f5f5f7] border border-dashed border-[#d2d2d7] rounded-xl flex items-center justify-center gap-2">
+                        <Shield className="w-4 h-4 text-green-500" />
+                        <span>开发环境已跳过人机验证</span>
+                        {(() => {
+                          if (!turnstileToken) setTimeout(() => setTurnstileToken("mock-dev-token"), 100);
+                          return null;
+                        })()}
+                      </div>
+                    ) : (
                       <Turnstile
                         key={turnstileKey}
-                        siteKey={import.meta.env.DEV ? "1x00000000000000000000AA" : "0x4AAAAAAFEV-PHDZX-ZmnQP"}
+                        siteKey={import.meta.env.VITE_TURNSTILE_SITE_KEY || "1x00000000000000000000AA"}
                         onSuccess={(token) => setTurnstileToken(token)}
                         onError={() => setTurnstileToken(null)}
                         onExpire={() => setTurnstileToken(null)}

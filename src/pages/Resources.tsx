@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import DocViewer, { DocViewerRenderers } from "@cyntler/react-doc-viewer";
-import { Download, FileText, Video, MessageSquare, Lock, X, BookOpen, GraduationCap, Lightbulb, Wrench, Eye, Loader2, AlertCircle, RefreshCw, Box, Folder, ChevronDown, ChevronRight } from "lucide-react";
+import { Download, FileText, Video, MessageSquare, Lock, X, BookOpen, GraduationCap, Lightbulb, Wrench, Eye, Loader2, AlertCircle, RefreshCw, Box, Folder, ChevronDown, ChevronRight, ShieldCheck } from "lucide-react";
 import { useUserStore } from "@/store/useUserStore";
 import { supabase } from "@/lib/supabase";
 import { showToast, safeConfirm } from "@/lib/utils";
@@ -654,31 +654,56 @@ export default function Resources() {
                 <p className="text-gray-500 text-sm mb-6">为了保护资源安全，请先完成下方的人机验证</p>
                 
                 <div className="flex justify-center w-full overflow-hidden rounded-xl bg-[#f5f5f7] border border-transparent hover:border-[#d2d2d7] transition-colors min-h-[70px]">
-                  <Turnstile
-                    siteKey="0x4AAAAAAFEV-PHDZX-ZmnQP"
-                    onSuccess={(token) => {
-                      setTurnstileToken(token);
-                      setShowCaptchaModal(prev => ({ ...prev, isOpen: false }));
-                      // 验证通过后自动执行之前被拦截的操作
-                      if (showCaptchaModal.item) {
-                        if (showCaptchaModal.action === 'download') {
-                          executeDownload(showCaptchaModal.item);
-                        } else {
-                          executePreview(showCaptchaModal.item);
+                  {import.meta.env.DEV ? (
+                    <div className="w-full py-4 text-center text-sm text-[#86868b] bg-[#f5f5f7] border border-dashed border-[#d2d2d7] rounded-xl flex items-center justify-center gap-2">
+                      <ShieldCheck className="w-4 h-4 text-green-500" />
+                      <span>开发环境已跳过人机验证</span>
+                      {(() => {
+                        if (!turnstileToken) {
+                          const item = showCaptchaModal.item;
+                          const action = showCaptchaModal.action;
+                          setTimeout(() => {
+                            setTurnstileToken("mock-dev-token");
+                            setShowCaptchaModal({ isOpen: false, action: 'download', item: null });
+                            if (item) {
+                              if (action === 'download') {
+                                executeDownload(item);
+                              } else {
+                                executePreview(item);
+                              }
+                            }
+                          }, 300);
                         }
-                      }
-                    }}
-                    options={{
-                      theme: "light",
-                      language: "zh-cn",
-                      size: "flexible"
-                    }}
-                    style={{
-                      width: '100%',
-                      display: 'flex',
-                      justifyContent: 'center'
-                    }}
-                  />
+                        return null;
+                      })()}
+                    </div>
+                  ) : (
+                    <Turnstile
+                      siteKey={import.meta.env.VITE_TURNSTILE_SITE_KEY || "1x00000000000000000000AA"}
+                      onSuccess={(token) => {
+                        setTurnstileToken(token);
+                        setShowCaptchaModal(prev => ({ ...prev, isOpen: false }));
+                        // 验证通过后自动执行之前被拦截的操作
+                        if (showCaptchaModal.item) {
+                          if (showCaptchaModal.action === 'download') {
+                            executeDownload(showCaptchaModal.item);
+                          } else {
+                            executePreview(showCaptchaModal.item);
+                          }
+                        }
+                      }}
+                      options={{
+                        theme: "light",
+                        language: "zh-cn",
+                        size: "flexible"
+                      }}
+                      style={{
+                        width: '100%',
+                        display: 'flex',
+                        justifyContent: 'center'
+                      }}
+                    />
+                  )}
                 </div>
               </motion.div>
             </div>

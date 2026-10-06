@@ -554,7 +554,7 @@ export default function Auth() {
             ) : (
               <Turnstile
                 key={turnstileKey}
-                siteKey="0x4AAAAAAFEV-PHDZX-ZmnQP"
+                siteKey={import.meta.env.VITE_TURNSTILE_SITE_KEY || "1x00000000000000000000AA"}
                 onSuccess={(token) => setTurnstileToken(token)}
                 options={{
                   theme: "light",
